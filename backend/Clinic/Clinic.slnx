@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="../.editorconfig" />
+    <File Path="../Directory.Build.props" />
+    <File Path="../Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Clinic.Api/Clinic.Api.csproj" Id="5356a228-a2ca-44b7-a022-6ddae3a2a5b6" />
+    <Project Path="src/Clinic.Application/Clinic.Application.csproj" Id="33a0744b-4c22-4126-80dc-1adb47848f73" />
+    <Project Path="src/Clinic.Domain/Clinic.Domain.csproj" Id="14489ec2-3526-47db-a11e-c552d572abc1" />
+    <Project Path="src/Clinic.Infrastructure/Clinic.Infrastructure.csproj" Id="c68eccdb-a17a-4187-b90f-a462b497106c" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/xUnit Test Project/Clinic.UnitTests.csproj" Id="d6b1c898-7c52-4f75-bb65-fcb3a2cd666c" />
+  </Folder>
+</Solution>

@@ -1,0 +1,13 @@
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+
+[*.cs]
+csharp_style_namespace_declarations = file_scoped:suggestion
+
+[*.{json,yml,yaml}]
+indent_size = 2
