@@ -53,6 +53,7 @@ public sealed class ClinicDbContext : DbContext, IUnitOfWork
                 .HasConversion<int>()
                 .IsRequired();
 
+
             appointment.HasOne<Patient>()
                 .WithMany()
                 .HasForeignKey(x => x.PatientId)
