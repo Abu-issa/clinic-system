@@ -46,4 +46,5 @@ public class Patient
         FullName = fullName.Trim();
         PhoneNumber = phoneNumber.Trim();
     }
+    // Additional methods for updating other properties can be added here
 }
