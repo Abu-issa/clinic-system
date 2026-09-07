@@ -1,0 +1,49 @@
+# Visual Studio and .NET
+.vs/
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Local secrets and settings
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+*.pfx
+*.p12
+*.publishsettings
+*.pubxml
+*.pubxml.user
+
+# Database files and backups
+*.mdf
+*.ldf
+*.ndf
+*.bak
+
+# Local runtime data
+**/logs/
+**/App_Data/
+**/wwwroot/uploads/
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+build/
+**/android/local.properties
+**/android/key.properties
+*.jks
+*.keystore
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
