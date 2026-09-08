@@ -13,8 +13,10 @@ public sealed class ClinicDbContext : DbContext, IUnitOfWork
     }
 
     public DbSet<Patient> Patients => Set<Patient>();
+    public DbSet<Doctor> Doctors => Set<Doctor>();
 
     public DbSet<Appointment> Appointments => Set<Appointment>();
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,8 +60,31 @@ public sealed class ClinicDbContext : DbContext, IUnitOfWork
                 .WithMany()
                 .HasForeignKey(x => x.PatientId)
                 .OnDelete(DeleteBehavior.Restrict);
+            appointment.HasOne<Doctor>()
+    .WithMany()
+    .HasForeignKey(x => x.DoctorId)
+    .OnDelete(DeleteBehavior.Restrict);
 
-            appointment.HasIndex(x => x.StartsAtUtc);
+            appointment.HasIndex(x => new
+            {
+                x.DoctorId,
+                x.StartsAtUtc
+            });
+        });
+        modelBuilder.Entity<Doctor>(doctor =>
+        {
+            doctor.ToTable("Doctors");
+
+            doctor.HasKey(x => x.Id);
+
+            doctor.Property(x => x.Id)
+                .ValueGeneratedNever();
+
+            doctor.Property(x => x.FullName)
+                .IsRequired();
+
+            doctor.Property(x => x.IsActive)
+                .IsRequired();
         });
     }
 }

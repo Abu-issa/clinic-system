@@ -16,11 +16,11 @@ public class AppointmentTests
 
         var end = start.AddMinutes(30);
 
-        var appointment = new Appointment(patientId, start, end);
+        var appointment = new Appointment(patientId, Guid.NewGuid(), start, end);
 
         Assert.NotEqual(Guid.Empty, appointment.Id);
         Assert.Equal(patientId, appointment.PatientId);
-        Assert.Equal(AppointmentStatus.Scheduled, appointment.Status);
+        Assert.Equal(AppointmentStatus.Pending, appointment.Status);
 
         Assert.Equal(start.ToUniversalTime(), appointment.StartsAtUtc);
         Assert.Equal(end.ToUniversalTime(), appointment.EndsAtUtc);
@@ -38,9 +38,10 @@ public class AppointmentTests
         var exception = Assert.Throws<ArgumentException>(() =>
         {
             _ = new Appointment(
-                Guid.Empty,
-                start,
-                start.AddMinutes(30));
+    Guid.Empty,
+    Guid.NewGuid(),
+    start,
+    start.AddMinutes(30));
         });
 
         Assert.Equal("patientId", exception.ParamName);
@@ -58,7 +59,7 @@ public class AppointmentTests
 
         var exception = Assert.Throws<ArgumentException>(() =>
         {
-            _ = new Appointment(Guid.NewGuid(), start, end);
+            _ = new Appointment(Guid.NewGuid(), Guid.NewGuid(), start, end);
         });
 
         Assert.Equal("endsAt", exception.ParamName);
@@ -66,7 +67,7 @@ public class AppointmentTests
     [Fact]
     public void Confirm_WhenScheduled_ChangesStatusToConfirmed()
     {
-        var appointment = CreateScheduledAppointment();
+        var appointment = CreatePendingAppointment();
 
         appointment.Confirm();
 
@@ -76,7 +77,7 @@ public class AppointmentTests
     [Fact]
     public void Confirm_WhenCancelled_ThrowsAndKeepsStatus()
     {
-        var appointment = CreateScheduledAppointment();
+        var appointment = CreatePendingAppointment();
         appointment.Cancel();
 
         Assert.Throws<InvalidOperationException>(() =>
@@ -90,7 +91,7 @@ public class AppointmentTests
     [Fact]
     public void Confirm_WhenAlreadyConfirmed_Throws()
     {
-        var appointment = CreateScheduledAppointment();
+        var appointment = CreatePendingAppointment();
         appointment.Confirm();
 
         Assert.Throws<InvalidOperationException>(() =>
@@ -107,7 +108,7 @@ public class AppointmentTests
     public void Cancel_WhenScheduledOrConfirmed_ChangesStatusToCancelled(
         bool confirmFirst)
     {
-        var appointment = CreateScheduledAppointment();
+        var appointment = CreatePendingAppointment();
 
         if (confirmFirst)
         {
@@ -122,7 +123,7 @@ public class AppointmentTests
     [Fact]
     public void Cancel_WhenAlreadyCancelled_Throws()
     {
-        var appointment = CreateScheduledAppointment();
+        var appointment = CreatePendingAppointment();
         appointment.Cancel();
 
         Assert.Throws<InvalidOperationException>(() =>
@@ -133,31 +134,48 @@ public class AppointmentTests
         Assert.Equal(AppointmentStatus.Cancelled, appointment.Status);
     }
 
-    private static Appointment CreateScheduledAppointment()
+    private static Appointment CreatePendingAppointment()
     {
         var start = new DateTimeOffset(
             2026, 10, 1, 10, 0, 0, TimeSpan.Zero);
 
         return new Appointment(
-            Guid.NewGuid(),
-            start,
-            start.AddMinutes(30));
+    Guid.NewGuid(),
+    Guid.NewGuid(),
+    start,
+    start.AddMinutes(30));
     }
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Complete_WhenActiveAndStarted_CompletesAppointment(
-    bool confirmFirst)
+    [Fact]
+    public void Constructor_WithEmptyDoctorId_Throws()
     {
-        var appointment = CreateScheduledAppointment();
+        var start = new DateTimeOffset(
+            2026, 10, 1, 10, 0, 0, TimeSpan.Zero);
 
-        if (confirmFirst)
+        var exception = Assert.Throws<ArgumentException>(() =>
         {
-            appointment.Confirm();
-        }
+            _ = new Appointment(
+                Guid.NewGuid(),
+                Guid.Empty,
+                start,
+                start.AddMinutes(30));
+        });
 
-        appointment.Complete(appointment.StartsAtUtc);
+        Assert.Equal("doctorId", exception.ParamName);
+    }
+    [Fact]
+    public void VisitWorkflow_FromConfirmedToCompleted_ChangesStatus()
+    {
+        var appointment = CreatePendingAppointment();
 
+        appointment.Confirm();
+
+        appointment.MarkAsArrived();
+        Assert.Equal(AppointmentStatus.Arrived, appointment.Status);
+
+        appointment.StartVisit(appointment.StartsAtUtc);
+        Assert.Equal(AppointmentStatus.InProgress, appointment.Status);
+
+        appointment.Complete(appointment.EndsAtUtc);
         Assert.Equal(AppointmentStatus.Completed, appointment.Status);
     }
 
@@ -167,7 +185,7 @@ public class AppointmentTests
     public void MarkAsNoShow_WhenActiveAndEnded_ChangesStatus(
         bool confirmFirst)
     {
-        var appointment = CreateScheduledAppointment();
+        var appointment = CreatePendingAppointment();
 
         if (confirmFirst)
         {
@@ -182,7 +200,11 @@ public class AppointmentTests
     [Fact]
     public void Complete_BeforeStart_ThrowsAndKeepsStatus()
     {
-        var appointment = CreateScheduledAppointment();
+        var appointment = CreatePendingAppointment();
+
+        appointment.Confirm();
+        appointment.MarkAsArrived();
+        appointment.StartVisit(appointment.StartsAtUtc);
 
         Assert.Throws<InvalidOperationException>(() =>
         {
@@ -190,13 +212,13 @@ public class AppointmentTests
                 appointment.StartsAtUtc.AddSeconds(-1));
         });
 
-        Assert.Equal(AppointmentStatus.Scheduled, appointment.Status);
+        Assert.Equal(AppointmentStatus.InProgress, appointment.Status);
     }
 
     [Fact]
     public void MarkAsNoShow_BeforeEnd_ThrowsAndKeepsStatus()
     {
-        var appointment = CreateScheduledAppointment();
+        var appointment = CreatePendingAppointment();
 
         Assert.Throws<InvalidOperationException>(() =>
         {
@@ -204,7 +226,7 @@ public class AppointmentTests
                 appointment.EndsAtUtc.AddSeconds(-1));
         });
 
-        Assert.Equal(AppointmentStatus.Scheduled, appointment.Status);
+        Assert.Equal(AppointmentStatus.Pending, appointment.Status);
     }
 
     [Theory]
@@ -214,7 +236,7 @@ public class AppointmentTests
     public void FinalStatus_RejectsAllStatusChanges(
         AppointmentStatus finalStatus)
     {
-        var appointment = CreateScheduledAppointment();
+        var appointment = CreatePendingAppointment();
         var now = appointment.EndsAtUtc;
 
         switch (finalStatus)
@@ -224,6 +246,9 @@ public class AppointmentTests
                 break;
 
             case AppointmentStatus.Completed:
+                appointment.Confirm();
+                appointment.MarkAsArrived();
+                appointment.StartVisit(appointment.StartsAtUtc);
                 appointment.Complete(now);
                 break;
 
@@ -236,7 +261,76 @@ public class AppointmentTests
         Assert.Throws<InvalidOperationException>(() => appointment.Cancel());
         Assert.Throws<InvalidOperationException>(() => appointment.Complete(now));
         Assert.Throws<InvalidOperationException>(() => appointment.MarkAsNoShow(now));
+        Assert.Throws<InvalidOperationException>(
+    () => appointment.MarkAsArrived());
+
+        Assert.Throws<InvalidOperationException>(
+            () => appointment.StartVisit(now));
 
         Assert.Equal(finalStatus, appointment.Status);
+    }
+    [Fact]
+    public void MarkAsArrived_WhenPending_ThrowsAndKeepsStatus()
+    {
+        var appointment = CreatePendingAppointment();
+
+        Assert.Throws<InvalidOperationException>(
+            () => appointment.MarkAsArrived());
+
+        Assert.Equal(AppointmentStatus.Pending, appointment.Status);
+    }
+
+    [Fact]
+    public void StartVisit_WhenConfirmed_ThrowsAndKeepsStatus()
+    {
+        var appointment = CreatePendingAppointment();
+        appointment.Confirm();
+
+        Assert.Throws<InvalidOperationException>(
+            () => appointment.StartVisit(appointment.StartsAtUtc));
+
+        Assert.Equal(AppointmentStatus.Confirmed, appointment.Status);
+    }
+
+    [Fact]
+    public void StartVisit_BeforeStart_ThrowsAndKeepsStatus()
+    {
+        var appointment = CreatePendingAppointment();
+        appointment.Confirm();
+        appointment.MarkAsArrived();
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            appointment.StartVisit(
+                appointment.StartsAtUtc.AddSeconds(-1));
+        });
+
+        Assert.Equal(AppointmentStatus.Arrived, appointment.Status);
+    }
+
+    [Theory]
+    [InlineData(AppointmentStatus.Pending)]
+    [InlineData(AppointmentStatus.Confirmed)]
+    [InlineData(AppointmentStatus.Arrived)]
+    public void Complete_BeforeVisitStarts_ThrowsAndKeepsStatus(
+        AppointmentStatus status)
+    {
+        var appointment = CreatePendingAppointment();
+
+        if (status == AppointmentStatus.Confirmed ||
+            status == AppointmentStatus.Arrived)
+        {
+            appointment.Confirm();
+        }
+
+        if (status == AppointmentStatus.Arrived)
+        {
+            appointment.MarkAsArrived();
+        }
+
+        Assert.Throws<InvalidOperationException>(
+            () => appointment.Complete(appointment.EndsAtUtc));
+
+        Assert.Equal(status, appointment.Status);
     }
 }

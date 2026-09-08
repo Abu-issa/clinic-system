@@ -5,6 +5,7 @@ namespace Clinic.Application.Abstractions;
 public interface IAppointmentRepository
 {
     Task<bool> HasOverlapAsync(
+        Guid doctorId,
         DateTimeOffset startsAtUtc,
         DateTimeOffset endsAtUtc,
         CancellationToken cancellationToken = default);

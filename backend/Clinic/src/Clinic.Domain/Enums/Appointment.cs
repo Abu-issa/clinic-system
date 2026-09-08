@@ -15,21 +15,30 @@ public class Appointment
     public AppointmentStatus Status { get; private set; }
 
     public DateTimeOffset CreatedAtUtc { get; private set; }
+    public Guid DoctorId { get; private set; }
 
     private Appointment()
     {
     }
 
     public Appointment(
-        Guid patientId,
-        DateTimeOffset startsAt,
-        DateTimeOffset endsAt)
+    Guid patientId,
+    Guid doctorId,
+    DateTimeOffset startsAt,
+    DateTimeOffset endsAt)
     {
         if (patientId == Guid.Empty)
         {
             throw new ArgumentException(
                 "Patient ID is required.",
                 nameof(patientId));
+        }
+
+        if (doctorId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Doctor ID is required.",
+                nameof(doctorId));
         }
 
         if (endsAt <= startsAt)
@@ -41,17 +50,18 @@ public class Appointment
 
         Id = Guid.NewGuid();
         PatientId = patientId;
+        DoctorId = doctorId;
         StartsAtUtc = startsAt.ToUniversalTime();
         EndsAtUtc = endsAt.ToUniversalTime();
-        Status = AppointmentStatus.Scheduled;
+        Status = AppointmentStatus.Pending;
         CreatedAtUtc = DateTimeOffset.UtcNow;
     }
     public void Confirm()
     {
-        if (Status != AppointmentStatus.Scheduled)
+        if (Status != AppointmentStatus.Pending)
         {
             throw new InvalidOperationException(
-                "Only scheduled appointments can be confirmed.");
+                "Only pending  appointments can be confirmed.");
         }
 
         Status = AppointmentStatus.Confirmed;
@@ -59,22 +69,21 @@ public class Appointment
 
     public void Cancel()
     {
-        if (Status != AppointmentStatus.Scheduled &&
+        if (Status != AppointmentStatus.Pending &&
             Status != AppointmentStatus.Confirmed)
         {
             throw new InvalidOperationException(
-                "Only scheduled or confirmed appointments can be cancelled.");
+                "Only pending  or confirmed appointments can be cancelled.");
         }
 
         Status = AppointmentStatus.Cancelled;
     }
     public void Complete(DateTimeOffset now)
     {
-        if (Status != AppointmentStatus.Scheduled &&
-            Status != AppointmentStatus.Confirmed)
+        if (Status != AppointmentStatus.InProgress)
         {
             throw new InvalidOperationException(
-                "Only scheduled or confirmed appointments can be completed.");
+                "Only appointments in progress can be completed.");
         }
 
         if (now < StartsAtUtc)
@@ -88,7 +97,7 @@ public class Appointment
 
     public void MarkAsNoShow(DateTimeOffset now)
     {
-        if (Status != AppointmentStatus.Scheduled &&
+        if (Status != AppointmentStatus.Pending &&
             Status != AppointmentStatus.Confirmed)
         {
             throw new InvalidOperationException(
@@ -102,5 +111,32 @@ public class Appointment
         }
 
         Status = AppointmentStatus.NoShow;
+    }
+    public void MarkAsArrived()
+    {
+        if (Status != AppointmentStatus.Confirmed)
+        {
+            throw new InvalidOperationException(
+                "Only confirmed appointments can be marked as arrived.");
+        }
+
+        Status = AppointmentStatus.Arrived;
+    }
+
+    public void StartVisit(DateTimeOffset now)
+    {
+        if (Status != AppointmentStatus.Arrived)
+        {
+            throw new InvalidOperationException(
+                "Only arrived appointments can be started.");
+        }
+
+        if (now < StartsAtUtc)
+        {
+            throw new InvalidOperationException(
+                "A visit cannot start before the appointment start.");
+        }
+
+        Status = AppointmentStatus.InProgress;
     }
 }

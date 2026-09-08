@@ -11,6 +11,7 @@
     <Project Path="src/Clinic.Infrastructure/Clinic.Infrastructure.csproj" Id="c68eccdb-a17a-4187-b90f-a462b497106c" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Clinic.IntegrationTests/Clinic.IntegrationTests.csproj" Id="e1046db6-242d-418f-8c83-089f2b04b825" />
     <Project Path="tests/xUnit Test Project/Clinic.UnitTests.csproj" Id="d6b1c898-7c52-4f75-bb65-fcb3a2cd666c" />
   </Folder>
 </Solution>

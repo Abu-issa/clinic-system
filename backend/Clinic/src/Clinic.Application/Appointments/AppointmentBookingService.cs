@@ -6,19 +6,25 @@ namespace Clinic.Application.Appointments;
 public sealed class AppointmentBookingService
 {
     private readonly IPatientRepository _patients;
+    private readonly IDoctorRepository _doctors;
     private readonly IAppointmentRepository _appointments;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IBookingTransaction _bookingTransaction;
     private readonly TimeProvider _timeProvider;
 
     public AppointmentBookingService(
         IPatientRepository patients,
+        IDoctorRepository doctors,
         IAppointmentRepository appointments,
         IUnitOfWork unitOfWork,
+        IBookingTransaction bookingTransaction,
         TimeProvider timeProvider)
     {
         _patients = patients;
+        _doctors = doctors;
         _appointments = appointments;
         _unitOfWork = unitOfWork;
+        _bookingTransaction = bookingTransaction;
         _timeProvider = timeProvider;
     }
 
@@ -32,6 +38,12 @@ public sealed class AppointmentBookingService
         {
             return BookAppointmentResult.Failure(
                 BookingError.InvalidPatientId);
+        }
+
+        if (request.DoctorId == Guid.Empty)
+        {
+            return BookAppointmentResult.Failure(
+                BookingError.InvalidDoctorId);
         }
 
         if (request.EndsAt <= request.StartsAt)
@@ -49,38 +61,67 @@ public sealed class AppointmentBookingService
                 BookingError.StartMustBeInFuture);
         }
 
-        var patientExists = await _patients.ExistsAsync(
-            request.PatientId,
+        return await _bookingTransaction.ExecuteAsync(
+            request.DoctorId,
+            async token =>
+            {
+                // Recheck time after waiting for the lock.
+                if (startsAtUtc <= _timeProvider.GetUtcNow())
+                {
+                    return BookAppointmentResult.Failure(
+                        BookingError.StartMustBeInFuture);
+                }
+
+                var patientExists = await _patients.ExistsAsync(
+                    request.PatientId,
+                    token);
+
+                if (!patientExists)
+                {
+                    return BookAppointmentResult.Failure(
+                        BookingError.PatientNotFound);
+                }
+
+                var doctor = await _doctors.GetByIdAsync(
+                    request.DoctorId,
+                    token);
+
+                if (doctor is null)
+                {
+                    return BookAppointmentResult.Failure(
+                        BookingError.DoctorNotFound);
+                }
+
+                if (!doctor.IsActive)
+                {
+                    return BookAppointmentResult.Failure(
+                        BookingError.DoctorInactive);
+                }
+
+                var hasOverlap = await _appointments.HasOverlapAsync(
+                    request.DoctorId,
+                    startsAtUtc,
+                    endsAtUtc,
+                    token);
+
+                if (hasOverlap)
+                {
+                    return BookAppointmentResult.Failure(
+                        BookingError.TimeSlotUnavailable);
+                }
+
+                var appointment = new Appointment(
+                    request.PatientId,
+                    request.DoctorId,
+                    startsAtUtc,
+                    endsAtUtc);
+
+                await _appointments.AddAsync(appointment, token);
+
+                await _unitOfWork.SaveChangesAsync(token);
+
+                return BookAppointmentResult.Success(appointment.Id);
+            },
             cancellationToken);
-
-        if (!patientExists)
-        {
-            return BookAppointmentResult.Failure(
-                BookingError.PatientNotFound);
-        }
-
-        var hasOverlap = await _appointments.HasOverlapAsync(
-            startsAtUtc,
-            endsAtUtc,
-            cancellationToken);
-
-        if (hasOverlap)
-        {
-            return BookAppointmentResult.Failure(
-                BookingError.TimeSlotUnavailable);
-        }
-
-        var appointment = new Appointment(
-            request.PatientId,
-            startsAtUtc,
-            endsAtUtc);
-
-        await _appointments.AddAsync(
-            appointment,
-            cancellationToken);
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return BookAppointmentResult.Success(appointment.Id);
     }
 }
