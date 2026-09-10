@@ -16,7 +16,10 @@ public sealed class ClinicDbContext : DbContext, IUnitOfWork
     public DbSet<Doctor> Doctors => Set<Doctor>();
 
     public DbSet<Appointment> Appointments => Set<Appointment>();
-
+    public DbSet<DoctorWorkingPeriod> DoctorWorkingPeriods =>
+    Set<DoctorWorkingPeriod>();
+    public DbSet<DoctorDayClosure> DoctorDayClosures =>
+    Set<DoctorDayClosure>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -86,5 +89,82 @@ public sealed class ClinicDbContext : DbContext, IUnitOfWork
             doctor.Property(x => x.IsActive)
                 .IsRequired();
         });
+        modelBuilder.Entity<DoctorWorkingPeriod>(period =>
+        {
+            period.ToTable(
+                "DoctorWorkingPeriods",
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_DoctorWorkingPeriods_TimeRange",
+                        "[EndsAtLocal] > [StartsAtLocal]");
+
+                    table.HasCheckConstraint(
+                        "CK_DoctorWorkingPeriods_DayOfWeek",
+                        "[DayOfWeek] BETWEEN 0 AND 6");
+                });
+
+            period.HasKey(x => x.Id);
+
+            period.Property(x => x.Id)
+                .ValueGeneratedNever();
+
+            period.Property(x => x.DayOfWeek)
+                .HasConversion<int>()
+                .IsRequired();
+
+            period.Property(x => x.StartsAtLocal)
+                .HasColumnType("time")
+                .IsRequired();
+
+            period.Property(x => x.EndsAtLocal)
+                .HasColumnType("time")
+                .IsRequired();
+
+            period.Property(x => x.IsActive)
+                .IsRequired();
+
+            period.HasOne<Doctor>()
+                .WithMany()
+                .HasForeignKey(x => x.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            period.HasIndex(x => new
+            {
+                x.DoctorId,
+                x.DayOfWeek,
+                x.IsActive
+            });
+        });
+        modelBuilder.Entity<DoctorDayClosure>(closure =>
+        {
+            closure.ToTable("DoctorDayClosures");
+
+            closure.HasKey(x => x.Id);
+
+            closure.Property(x => x.Id)
+                .ValueGeneratedNever();
+
+            closure.Property(x => x.LocalDate)
+                .HasColumnType("date")
+                .IsRequired();
+
+            closure.Property(x => x.Reason)
+                .HasMaxLength(500)
+                .IsRequired();
+
+            closure.HasOne<Doctor>()
+                .WithMany()
+                .HasForeignKey(x => x.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            closure.HasIndex(x => new
+            {
+                x.DoctorId,
+                x.LocalDate
+            })
+                .IsUnique();
+        });
     }
+
 }

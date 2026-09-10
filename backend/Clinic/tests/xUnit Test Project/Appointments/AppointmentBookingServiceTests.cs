@@ -51,6 +51,7 @@ public class AppointmentBookingServiceTests
     [InlineData(BookingError.InvalidDoctorId)]
     [InlineData(BookingError.DoctorNotFound)]
     [InlineData(BookingError.DoctorInactive)]
+    [InlineData(BookingError.OutsideWorkingHours)]
     public async Task BookAsync_WhenRejected_DoesNotSave(
         BookingError expectedError)
     {
@@ -93,6 +94,9 @@ public class AppointmentBookingServiceTests
             case BookingError.DoctorInactive:
                 store.AvailableDoctor!.Deactivate();
                 break;
+            case BookingError.OutsideWorkingHours:
+                store.IsWithinWorkingHours = false;
+                break;
         }
 
         var result = await service.BookAsync(request);
@@ -120,6 +124,7 @@ public class AppointmentBookingServiceTests
         FakeStore store)
     {
         return new AppointmentBookingService(
+            store,
             store,
             store,
             store,
@@ -173,11 +178,12 @@ public class AppointmentBookingServiceTests
         Assert.Equal(0, store.SaveCalls);
     }
     private sealed class FakeStore :
-        IPatientRepository,
-        IDoctorRepository,
-        IAppointmentRepository,
-        IUnitOfWork,
-        IBookingTransaction
+      IPatientRepository,
+      IDoctorRepository,
+      IAppointmentRepository,
+      IUnitOfWork,
+      IBookingTransaction,
+      IWorkingScheduleRepository
     {
         public Guid? CheckedDoctorId { get; private set; }
         public bool PatientExists { get; set; } = true;
@@ -278,6 +284,18 @@ public class AppointmentBookingServiceTests
             {
                 IsInsideTransaction = false;
             }
+        }
+        public bool IsWithinWorkingHours { get; set; } = true;
+
+        public Task<bool> IsWithinActivePeriodAsync(
+            Guid doctorId,
+            DateTimeOffset startsAtUtc,
+            DateTimeOffset endsAtUtc,
+            CancellationToken cancellationToken = default)
+        {
+            Assert.True(IsInsideTransaction);
+
+            return Task.FromResult(IsWithinWorkingHours);
         }
     }
 }

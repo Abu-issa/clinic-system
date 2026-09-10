@@ -11,6 +11,7 @@ public sealed class SqlDatabaseFixture : IAsyncLifetime
         $"ClinicTests_{Guid.NewGuid():N}";
 
     private readonly string _connectionString;
+    public string ConnectionString => _connectionString;
 
     public SqlDatabaseFixture()
     {

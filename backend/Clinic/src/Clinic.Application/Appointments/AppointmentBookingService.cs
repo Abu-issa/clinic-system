@@ -11,6 +11,7 @@ public sealed class AppointmentBookingService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBookingTransaction _bookingTransaction;
     private readonly TimeProvider _timeProvider;
+    private readonly IWorkingScheduleRepository _workingSchedule;
 
     public AppointmentBookingService(
         IPatientRepository patients,
@@ -18,6 +19,7 @@ public sealed class AppointmentBookingService
         IAppointmentRepository appointments,
         IUnitOfWork unitOfWork,
         IBookingTransaction bookingTransaction,
+        IWorkingScheduleRepository workingSchedule,
         TimeProvider timeProvider)
     {
         _patients = patients;
@@ -25,6 +27,7 @@ public sealed class AppointmentBookingService
         _appointments = appointments;
         _unitOfWork = unitOfWork;
         _bookingTransaction = bookingTransaction;
+        _workingSchedule = workingSchedule;
         _timeProvider = timeProvider;
     }
 
@@ -96,6 +99,18 @@ public sealed class AppointmentBookingService
                 {
                     return BookAppointmentResult.Failure(
                         BookingError.DoctorInactive);
+                }
+                var isWithinWorkingHours =
+    await _workingSchedule.IsWithinActivePeriodAsync(
+        request.DoctorId,
+        startsAtUtc,
+        endsAtUtc,
+        token);
+
+                if (!isWithinWorkingHours)
+                {
+                    return BookAppointmentResult.Failure(
+                        BookingError.OutsideWorkingHours);
                 }
 
                 var hasOverlap = await _appointments.HasOverlapAsync(

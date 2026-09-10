@@ -4,6 +4,7 @@ using Clinic.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Clinic.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ClinicDbContext))]
-    partial class ClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260910005603_AddDoctorWorkingPeriods")]
+    partial class AddDoctorWorkingPeriods
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -75,30 +78,6 @@ namespace Clinic.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Doctors", (string)null);
-                });
-
-            modelBuilder.Entity("Clinic.Domain.Entities.DoctorDayClosure", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("DoctorId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateOnly>("LocalDate")
-                        .HasColumnType("date");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DoctorId", "LocalDate")
-                        .IsUnique();
-
-                    b.ToTable("DoctorDayClosures", (string)null);
                 });
 
             modelBuilder.Entity("Clinic.Domain.Entities.DoctorWorkingPeriod", b =>
@@ -168,15 +147,6 @@ namespace Clinic.Infrastructure.Persistence.Migrations
                     b.HasOne("Clinic.Domain.Entities.Patient", null)
                         .WithMany()
                         .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Clinic.Domain.Entities.DoctorDayClosure", b =>
-                {
-                    b.HasOne("Clinic.Domain.Entities.Doctor", null)
-                        .WithMany()
-                        .HasForeignKey("DoctorId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

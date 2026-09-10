@@ -31,7 +31,7 @@ public sealed class BookingConcurrencyTests :
 
         await SeedAsync(patient, doctor);
 
-        var start = DateTimeOffset.UtcNow.AddDays(7);
+        var start = TestWorkingHours.CreateFutureStart();
 
         var firstRequest = new BookAppointmentRequest(
             patient.Id,
@@ -48,12 +48,13 @@ public sealed class BookingConcurrencyTests :
         var results = await BookTogetherAsync(
             firstRequest,
             secondRequest);
-
         var success = Assert.Single(
-            results.Where(result => result.IsSuccess));
+            results,
+            result => result.IsSuccess);
 
         var failure = Assert.Single(
-            results.Where(result => !result.IsSuccess));
+            results,
+            result => !result.IsSuccess);
 
         Assert.Equal(
             BookingError.TimeSlotUnavailable,
@@ -78,7 +79,7 @@ public sealed class BookingConcurrencyTests :
 
         await SeedAsync(patient, doctor);
 
-        var start = DateTimeOffset.UtcNow.AddDays(7);
+        var start = TestWorkingHours.CreateFutureStart();
 
         var request = new BookAppointmentRequest(
             patient.Id,
@@ -160,7 +161,7 @@ public sealed class BookingConcurrencyTests :
 
         await SeedAsync(patient, doctor);
 
-        var start = DateTimeOffset.UtcNow.AddDays(7);
+        var start = TestWorkingHours.CreateFutureStart();
 
         var firstRequest = new BookAppointmentRequest(
             patient.Id,
@@ -203,7 +204,7 @@ public sealed class BookingConcurrencyTests :
             secondPatient,
             secondDoctor);
 
-        var start = DateTimeOffset.UtcNow.AddDays(7);
+        var start = TestWorkingHours.CreateFutureStart();
 
         var firstRequest = new BookAppointmentRequest(
             firstPatient.Id,
@@ -242,9 +243,14 @@ public sealed class BookingConcurrencyTests :
 
         context.AddRange(entities);
 
+        foreach (var doctor in entities.OfType<Doctor>())
+        {
+            context.DoctorWorkingPeriods.AddRange(
+                TestWorkingHours.CreatePeriods(doctor.Id));
+        }
+
         await context.SaveChangesAsync();
     }
-
     private async Task<BookAppointmentResult[]> BookTogetherAsync(
         BookAppointmentRequest firstRequest,
         BookAppointmentRequest secondRequest)
@@ -285,7 +291,7 @@ public sealed class BookingConcurrencyTests :
     }
 
     private static AppointmentBookingService CreateService(
-        ClinicDbContext context)
+      ClinicDbContext context)
     {
         return new AppointmentBookingService(
             new PatientRepository(context),
@@ -293,6 +299,9 @@ public sealed class BookingConcurrencyTests :
             new AppointmentRepository(context),
             context,
             new SqlBookingTransaction(context),
+            new WorkingScheduleRepository(
+                context,
+                TestWorkingHours.ClinicTimeZone),
             TimeProvider.System);
     }
 }

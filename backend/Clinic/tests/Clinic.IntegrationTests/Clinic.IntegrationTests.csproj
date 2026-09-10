@@ -12,6 +12,7 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.NET.Test.Sdk" />
         <PackageReference Include="xunit" />
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
 
         <PackageReference Include="xunit.runner.visualstudio">
             <PrivateAssets>all</PrivateAssets>
@@ -25,6 +26,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\src\Clinic.Api\Clinic.Api.csproj" />
       <ProjectReference Include="..\..\src\Clinic.Application\Clinic.Application.csproj" />
       <ProjectReference Include="..\..\src\Clinic.Domain\Clinic.Domain.csproj" />
       <ProjectReference Include="..\..\src\Clinic.Infrastructure\Clinic.Infrastructure.csproj" />

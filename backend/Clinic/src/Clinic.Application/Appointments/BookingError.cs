@@ -10,5 +10,6 @@ public enum BookingError
     TimeSlotUnavailable = 5,
         InvalidDoctorId = 6,
     DoctorNotFound = 7,
-    DoctorInactive = 8
+    DoctorInactive = 8,
+    OutsideWorkingHours = 9
 }
