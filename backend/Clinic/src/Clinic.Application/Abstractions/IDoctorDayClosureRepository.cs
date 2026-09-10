@@ -18,4 +18,8 @@ public interface IDoctorDayClosureRepository
         DateTimeOffset dayStartsAtUtc,
         DateTimeOffset dayEndsAtUtc,
         CancellationToken cancellationToken = default);
+    Task<DoctorDayClosure?> GetAsync(
+    Guid doctorId,
+    DateOnly localDate,
+    CancellationToken cancellationToken = default);
 }

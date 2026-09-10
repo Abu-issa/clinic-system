@@ -78,7 +78,10 @@ public class AppointmentTests
     public void Confirm_WhenCancelled_ThrowsAndKeepsStatus()
     {
         var appointment = CreatePendingAppointment();
-        appointment.Cancel();
+        appointment.Cancel(
+     "إلغاء تجريبي",
+     "test-staff-user",
+     DateTimeOffset.UtcNow);
 
         Assert.Throws<InvalidOperationException>(() =>
         {
@@ -115,7 +118,10 @@ public class AppointmentTests
             appointment.Confirm();
         }
 
-        appointment.Cancel();
+        appointment.Cancel(
+     "إلغاء تجريبي",
+     "test-staff-user",
+     DateTimeOffset.UtcNow);
 
         Assert.Equal(AppointmentStatus.Cancelled, appointment.Status);
     }
@@ -124,11 +130,17 @@ public class AppointmentTests
     public void Cancel_WhenAlreadyCancelled_Throws()
     {
         var appointment = CreatePendingAppointment();
-        appointment.Cancel();
+        appointment.Cancel(
+    "إلغاء تجريبي",
+    "test-staff-user",
+    DateTimeOffset.UtcNow);
 
         Assert.Throws<InvalidOperationException>(() =>
         {
-            appointment.Cancel();
+            appointment.Cancel(
+    "إلغاء تجريبي",
+    "test-staff-user",
+    DateTimeOffset.UtcNow);
         });
 
         Assert.Equal(AppointmentStatus.Cancelled, appointment.Status);
@@ -242,7 +254,10 @@ public class AppointmentTests
         switch (finalStatus)
         {
             case AppointmentStatus.Cancelled:
-                appointment.Cancel();
+                appointment.Cancel(
+     "إلغاء تجريبي",
+     "test-staff-user",
+     DateTimeOffset.UtcNow);
                 break;
 
             case AppointmentStatus.Completed:
@@ -258,7 +273,11 @@ public class AppointmentTests
         }
 
         Assert.Throws<InvalidOperationException>(() => appointment.Confirm());
-        Assert.Throws<InvalidOperationException>(() => appointment.Cancel());
+        Assert.Throws<InvalidOperationException>(() =>
+    appointment.Cancel(
+        "إلغاء تجريبي",
+        "test-staff-user",
+        DateTimeOffset.UtcNow));
         Assert.Throws<InvalidOperationException>(() => appointment.Complete(now));
         Assert.Throws<InvalidOperationException>(() => appointment.MarkAsNoShow(now));
         Assert.Throws<InvalidOperationException>(

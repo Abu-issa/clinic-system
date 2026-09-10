@@ -57,7 +57,14 @@ public sealed class ClinicDbContext : DbContext, IUnitOfWork
             appointment.Property(x => x.Status)
                 .HasConversion<int>()
                 .IsRequired();
+            appointment.Property(x => x.CancellationReason)
+    .HasMaxLength(500);
 
+            appointment.Property(x => x.CancelledByUserId)
+                .HasMaxLength(200);
+
+            appointment.Property(x => x.CancelledAtUtc)
+                .HasColumnType("datetimeoffset");
 
             appointment.HasOne<Patient>()
                 .WithMany()

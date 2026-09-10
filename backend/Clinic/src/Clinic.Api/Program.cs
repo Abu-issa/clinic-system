@@ -39,6 +39,7 @@ builder.Services.AddScoped<IPatientRepository, PatientRepository>();
 builder.Services.AddScoped<IDoctorRepository, DoctorRepository>();
 builder.Services.AddScoped<IAppointmentRepository, AppointmentRepository>();
 builder.Services.AddScoped<DoctorDayClosureService>();
+builder.Services.AddScoped<AppointmentCancellationService>();
 
 builder.Services.AddScoped<IUnitOfWork>(provider =>
     provider.GetRequiredService<ClinicDbContext>());

@@ -297,5 +297,25 @@ public class AppointmentBookingServiceTests
 
             return Task.FromResult(IsWithinWorkingHours);
         }
+        public Task<Appointment?> GetForDoctorAsync(
+    Guid appointmentId,
+    Guid doctorId,
+    CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Assert.True(IsInsideTransaction);
+
+            var appointment = AddedAppointment;
+
+            if (appointment is null ||
+                appointment.Id != appointmentId ||
+                appointment.DoctorId != doctorId)
+            {
+                return Task.FromResult<Appointment?>(null);
+            }
+
+            return Task.FromResult<Appointment?>(appointment);
+        }
     }
+
 }

@@ -28,6 +28,7 @@ public sealed class DoctorDayClosureRepository :
             cancellationToken);
     }
 
+
     public Task AddAsync(
         DoctorDayClosure closure,
         CancellationToken cancellationToken = default)
@@ -69,5 +70,18 @@ public sealed class DoctorDayClosureRepository :
             .OrderBy(appointment => appointment.StartsAtUtc)
             .ThenBy(appointment => appointment.Id)
             .ToListAsync(cancellationToken);
+    }
+    public Task<DoctorDayClosure?> GetAsync(
+    Guid doctorId,
+    DateOnly localDate,
+    CancellationToken cancellationToken = default)
+    {
+        return _context.DoctorDayClosures
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                closure =>
+                    closure.DoctorId == doctorId &&
+                    closure.LocalDate == localDate,
+                cancellationToken);
     }
 }

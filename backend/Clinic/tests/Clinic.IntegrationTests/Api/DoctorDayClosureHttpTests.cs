@@ -147,6 +147,145 @@ public sealed class DoctorDayClosureHttpTests :
         Assert.Equal(startsAtUtc, savedAppointment.StartsAtUtc);
         Assert.Equal(endsAtUtc, savedAppointment.EndsAtUtc);
     }
+    [Fact]
+    public async Task Get_ReturnsDetailsOnlyForAuthorizedDoctor()
+    {
+        var doctor = new Doctor("طبيب اختبار قراءة الإغلاق");
+        var otherDoctor = new Doctor("طبيب آخر");
+        var patient = new Patient(
+            "مريض تجريبي",
+            "+962790000004");
+
+        var startsAtUtc = TestWorkingHours.CreateFutureStart();
+        var endsAtUtc = startsAtUtc.AddMinutes(30);
+
+        var localStart = TimeZoneInfo.ConvertTime(
+            startsAtUtc,
+            TestWorkingHours.ClinicTimeZone);
+
+        var localDate = DateOnly.FromDateTime(localStart.DateTime);
+
+        var closure = new DoctorDayClosure(
+            doctor.Id,
+            localDate,
+            "سبب إغلاق تجريبي خاص");
+
+        var appointment = new Appointment(
+            patient.Id,
+            doctor.Id,
+            startsAtUtc,
+            endsAtUtc);
+
+        appointment.Confirm();
+
+        await using (var seed = _database.CreateContext())
+        {
+            seed.Doctors.AddRange(doctor, otherDoctor);
+            seed.Patients.Add(patient);
+            seed.DoctorDayClosures.Add(closure);
+            seed.Appointments.Add(appointment);
+
+            await seed.SaveChangesAsync();
+        }
+
+        using var factory = new BookingApiFactory(
+            _database.ConnectionString);
+
+        var dateText = localDate.ToString(
+            "yyyy-MM-dd",
+            System.Globalization.CultureInfo.InvariantCulture);
+
+        var url =
+            $"/api/staff/doctors/{doctor.Id}/day-closures" +
+            $"?localDate={dateText}";
+
+        // قراءة بدون CSRF: هذه العملية لا تغيّر البيانات.
+        using (var authorizedClient = CreateAuthorizedClient(
+            factory,
+            doctor.Id))
+        {
+            using var response = await authorizedClient.GetAsync(url);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            Assert.True(response.Headers.CacheControl?.NoStore == true);
+
+            var body = await response.Content.ReadAsStringAsync();
+
+            using var document = JsonDocument.Parse(body);
+            var root = document.RootElement;
+
+            Assert.Equal(
+                closure.Id,
+                root.GetProperty("closureId").GetGuid());
+
+            Assert.Equal(
+                doctor.Id,
+                root.GetProperty("doctorId").GetGuid());
+
+            Assert.Equal(
+                dateText,
+                root.GetProperty("localDate").GetString());
+
+            Assert.Equal(
+                closure.Reason,
+                root.GetProperty("reason").GetString());
+
+            var affectedAppointments = root
+                .GetProperty("affectedAppointments")
+                .EnumerateArray()
+                .ToArray();
+
+            var affected = Assert.Single(affectedAppointments);
+
+            Assert.Equal(
+                appointment.Id,
+                affected.GetProperty("appointmentId").GetGuid());
+
+            Assert.Equal(
+                startsAtUtc,
+                affected.GetProperty("startsAtUtc").GetDateTimeOffset());
+
+            Assert.Equal(
+                endsAtUtc,
+                affected.GetProperty("endsAtUtc").GetDateTimeOffset());
+
+            Assert.Equal(
+                (int)AppointmentStatus.Confirmed,
+                affected.GetProperty("status").GetInt32());
+        }
+
+        // الصلاحية لطبيب آخر لا تسمح بقراءة الإغلاق المطلوب.
+        using (var otherClient = CreateAuthorizedClient(
+            factory,
+            otherDoctor.Id))
+        {
+            using var response = await otherClient.GetAsync(url);
+
+            Assert.Equal(
+                HttpStatusCode.Forbidden,
+                response.StatusCode);
+
+            var body = await response.Content.ReadAsStringAsync();
+
+            using var document = JsonDocument.Parse(body);
+
+            Assert.Equal(
+                "schedule_access_denied",
+                document.RootElement.GetProperty("code").GetString());
+
+            Assert.False(
+                document.RootElement.TryGetProperty("reason", out _));
+
+            Assert.False(
+                document.RootElement.TryGetProperty(
+                    "affectedAppointments",
+                    out _));
+
+            Assert.DoesNotContain(appointment.Id.ToString(), body);
+            Assert.DoesNotContain(closure.Id.ToString(), body);
+        }
+    }
 
     private static HttpClient CreateAuthorizedClient(
         WebApplicationFactory<Program> factory,

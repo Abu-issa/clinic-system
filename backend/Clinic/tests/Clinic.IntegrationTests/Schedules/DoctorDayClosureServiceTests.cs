@@ -51,7 +51,10 @@ public sealed class DoctorDayClosureServiceTests :
             startsAtUtc.AddHours(1),
             endsAtUtc.AddHours(1));
 
-        cancelledAppointment.Cancel();
+        cancelledAppointment.Cancel(
+    "إلغاء تجريبي",
+    "test-staff-user",
+    DateTimeOffset.UtcNow);
 
         await using (var seed = _database.CreateContext())
         {

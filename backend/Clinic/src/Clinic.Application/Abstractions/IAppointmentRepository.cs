@@ -13,4 +13,8 @@ public interface IAppointmentRepository
     Task AddAsync(
         Appointment appointment,
         CancellationToken cancellationToken = default);
+    Task<Appointment?> GetForDoctorAsync(
+    Guid appointmentId,
+    Guid doctorId,
+    CancellationToken cancellationToken = default);
 }

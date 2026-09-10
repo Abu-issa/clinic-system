@@ -16,6 +16,11 @@ public class Appointment
 
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public Guid DoctorId { get; private set; }
+    public string? CancellationReason { get; private set; }
+
+    public string? CancelledByUserId { get; private set; }
+
+    public DateTimeOffset? CancelledAtUtc { get; private set; }
 
     private Appointment()
     {
@@ -67,15 +72,47 @@ public class Appointment
         Status = AppointmentStatus.Confirmed;
     }
 
-    public void Cancel()
+    public void Cancel(
+    string reason,
+    string cancelledByUserId,
+    DateTimeOffset cancelledAt)
     {
         if (Status != AppointmentStatus.Pending &&
             Status != AppointmentStatus.Confirmed)
         {
             throw new InvalidOperationException(
-                "Only pending  or confirmed appointments can be cancelled.");
+                "Only pending or confirmed appointments can be cancelled.");
         }
 
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        ArgumentException.ThrowIfNullOrWhiteSpace(cancelledByUserId);
+
+        var trimmedReason = reason.Trim();
+
+        if (trimmedReason.Length > 500)
+        {
+            throw new ArgumentException(
+                "Cancellation reason cannot exceed 500 characters.",
+                nameof(reason));
+        }
+
+        if (cancelledByUserId.Length > 200)
+        {
+            throw new ArgumentException(
+                "User ID cannot exceed 200 characters.",
+                nameof(cancelledByUserId));
+        }
+
+        if (cancelledAt == default)
+        {
+            throw new ArgumentException(
+                "Cancellation time is required.",
+                nameof(cancelledAt));
+        }
+
+        CancellationReason = trimmedReason;
+        CancelledByUserId = cancelledByUserId;
+        CancelledAtUtc = cancelledAt.ToUniversalTime();
         Status = AppointmentStatus.Cancelled;
     }
     public void Complete(DateTimeOffset now)

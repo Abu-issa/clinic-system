@@ -118,7 +118,53 @@ public sealed class StaffDoctorDayClosuresController : ControllerBase
                 "Unsupported closure error.")
         };
     }
+    [HttpGet]
+    [ResponseCache(
+    NoStore = true,
+    Location = ResponseCacheLocation.None)]
+    public async Task<IResult> Get(
+    [FromRoute] Guid doctorId,
+    [FromQuery] DateOnly? localDate,
+    CancellationToken cancellationToken)
+    {
+        var authorizationResult = await _authorization.AuthorizeAsync(
+            User,
+            doctorId,
+            "ManageDoctorSchedule");
 
+        if (!authorizationResult.Succeeded)
+        {
+            return Failure(
+                StatusCodes.Status403Forbidden,
+                "You cannot manage this doctor's schedule.",
+                "schedule_access_denied");
+        }
+
+        if (localDate is not DateOnly date ||
+            date == default ||
+            date == DateOnly.MaxValue)
+        {
+            return Failure(
+                StatusCodes.Status400BadRequest,
+                "A valid closure date is required.",
+                "invalid_closure_date");
+        }
+
+        var details = await _service.GetAsync(
+            doctorId,
+            date,
+            cancellationToken);
+
+        if (details is null)
+        {
+            return Failure(
+                StatusCodes.Status404NotFound,
+                "No closure was found for this doctor and date.",
+                "doctor_day_closure_not_found");
+        }
+
+        return Results.Ok(details);
+    }
     private IResult Failure(
         int statusCode,
         string title,

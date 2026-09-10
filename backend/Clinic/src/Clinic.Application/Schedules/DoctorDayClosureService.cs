@@ -140,4 +140,77 @@ public sealed class DoctorDayClosureService
             },
             cancellationToken);
     }
+    public async Task<DoctorDayClosureDetails?> GetAsync(
+    Guid doctorId,
+    DateOnly localDate,
+    CancellationToken cancellationToken = default)
+    {
+        if (doctorId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Doctor ID is required.",
+                nameof(doctorId));
+        }
+
+        if (localDate == default || localDate == DateOnly.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(nameof(localDate));
+        }
+
+        return await _transaction.ExecuteAsync<DoctorDayClosureDetails?>(
+            doctorId,
+            async token =>
+            {
+                var closure = await _closures.GetAsync(
+                    doctorId,
+                    localDate,
+                    token);
+
+                if (closure is null)
+                {
+                    return null;
+                }
+
+                var localStart = localDate.ToDateTime(
+                    TimeOnly.MinValue,
+                    DateTimeKind.Unspecified);
+
+                var localEnd = localDate.AddDays(1).ToDateTime(
+                    TimeOnly.MinValue,
+                    DateTimeKind.Unspecified);
+
+                var startsAtUtc = new DateTimeOffset(
+                    TimeZoneInfo.ConvertTimeToUtc(
+                        localStart,
+                        _clinicTimeZone));
+
+                var endsAtUtc = new DateTimeOffset(
+                    TimeZoneInfo.ConvertTimeToUtc(
+                        localEnd,
+                        _clinicTimeZone));
+
+                var appointments =
+                    await _closures.GetAffectedAppointmentsAsync(
+                        doctorId,
+                        startsAtUtc,
+                        endsAtUtc,
+                        token);
+
+                var affectedAppointments = appointments
+                    .Select(appointment => new ClosureAffectedAppointment(
+                        appointment.Id,
+                        appointment.StartsAtUtc,
+                        appointment.EndsAtUtc,
+                        appointment.Status))
+                    .ToArray();
+
+                return new DoctorDayClosureDetails(
+                    closure.Id,
+                    closure.DoctorId,
+                    closure.LocalDate,
+                    closure.Reason,
+                    Array.AsReadOnly(affectedAppointments));
+            },
+            cancellationToken);
+    }
 }

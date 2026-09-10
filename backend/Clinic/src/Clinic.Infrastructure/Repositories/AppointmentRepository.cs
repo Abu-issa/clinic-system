@@ -40,4 +40,17 @@ public sealed class AppointmentRepository : IAppointmentRepository
 
         return Task.CompletedTask;
     }
+    public Task<Appointment?> GetForDoctorAsync(
+    Guid appointmentId,
+    Guid doctorId,
+    CancellationToken cancellationToken = default)
+    {
+        return _context.Appointments
+            .AsTracking()
+            .SingleOrDefaultAsync(
+                appointment =>
+                    appointment.Id == appointmentId &&
+                    appointment.DoctorId == doctorId,
+                cancellationToken);
+    }
 }
