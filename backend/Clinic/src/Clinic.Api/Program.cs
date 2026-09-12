@@ -40,6 +40,7 @@ builder.Services.AddScoped<IDoctorRepository, DoctorRepository>();
 builder.Services.AddScoped<IAppointmentRepository, AppointmentRepository>();
 builder.Services.AddScoped<DoctorDayClosureService>();
 builder.Services.AddScoped<AppointmentCancellationService>();
+builder.Services.AddScoped<AppointmentReschedulingService>();
 
 builder.Services.AddScoped<IUnitOfWork>(provider =>
     provider.GetRequiredService<ClinicDbContext>());
@@ -106,6 +107,20 @@ builder.Services.AddAuthorization(options =>
             context.Resource is Guid doctorId &&
             doctorId != Guid.Empty &&
             context.User.FindAll("schedule_doctor_id").Any(claim =>
+                Guid.TryParse(claim.Value, out var allowedDoctorId) &&
+                allowedDoctorId == doctorId));
+    });
+    options.AddPolicy("CancelDoctorAppointment", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Doctor", "Receptionist");
+        policy.RequireClaim("amr", "mfa");
+        policy.RequireClaim("permission", "appointments.cancel");
+
+        policy.RequireAssertion(context =>
+            context.Resource is Guid doctorId &&
+            doctorId != Guid.Empty &&
+            context.User.FindAll("appointment_doctor_id").Any(claim =>
                 Guid.TryParse(claim.Value, out var allowedDoctorId) &&
                 allowedDoctorId == doctorId));
     });

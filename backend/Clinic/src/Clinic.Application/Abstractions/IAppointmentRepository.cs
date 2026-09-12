@@ -17,4 +17,14 @@ public interface IAppointmentRepository
     Guid appointmentId,
     Guid doctorId,
     CancellationToken cancellationToken = default);
+    Task<bool> HasOverlapExcludingAsync(
+    Guid doctorId,
+    Guid excludedAppointmentId,
+    DateTimeOffset startsAtUtc,
+    DateTimeOffset endsAtUtc,
+    CancellationToken cancellationToken = default);
+
+    Task AddRescheduleAsync(
+        AppointmentReschedule change,
+        CancellationToken cancellationToken = default);
 }

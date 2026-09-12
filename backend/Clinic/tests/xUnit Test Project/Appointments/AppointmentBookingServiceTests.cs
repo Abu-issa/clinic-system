@@ -133,6 +133,7 @@ public class AppointmentBookingServiceTests
             new FixedTimeProvider(Now));
     }
 
+
     private static BookAppointmentRequest CreateRequest(
     Guid doctorId)
     {
@@ -198,7 +199,38 @@ public class AppointmentBookingServiceTests
         public Doctor? AvailableDoctor { get; set; } =
     new Doctor("طبيب تجريبي");
 
+        public Guid? ExcludedAppointmentId { get; private set; }
 
+        public AppointmentReschedule? AddedReschedule { get; private set; }
+
+        public Task<bool> HasOverlapExcludingAsync(
+            Guid doctorId,
+            Guid excludedAppointmentId,
+            DateTimeOffset startsAtUtc,
+            DateTimeOffset endsAtUtc,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Assert.True(IsInsideTransaction);
+
+            CheckedDoctorId = doctorId;
+            ExcludedAppointmentId = excludedAppointmentId;
+
+            return Task.FromResult(HasOverlap);
+        }
+
+        public Task AddRescheduleAsync(
+            AppointmentReschedule change,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(change);
+            cancellationToken.ThrowIfCancellationRequested();
+            Assert.True(IsInsideTransaction);
+
+            AddedReschedule = change;
+
+            return Task.CompletedTask;
+        }
         public Task<bool> ExistsAsync(
             Guid patientId,
             CancellationToken cancellationToken = default)

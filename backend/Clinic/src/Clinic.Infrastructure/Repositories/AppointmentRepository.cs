@@ -53,4 +53,32 @@ public sealed class AppointmentRepository : IAppointmentRepository
                     appointment.DoctorId == doctorId,
                 cancellationToken);
     }
+    public Task<bool> HasOverlapExcludingAsync(
+    Guid doctorId,
+    Guid excludedAppointmentId,
+    DateTimeOffset startsAtUtc,
+    DateTimeOffset endsAtUtc,
+    CancellationToken cancellationToken = default)
+    {
+        return _context.Appointments.AnyAsync(
+            appointment =>
+                appointment.DoctorId == doctorId &&
+                appointment.Id != excludedAppointmentId &&
+                appointment.Status != AppointmentStatus.Cancelled &&
+                appointment.StartsAtUtc < endsAtUtc &&
+                appointment.EndsAtUtc > startsAtUtc,
+            cancellationToken);
+    }
+
+    public Task AddRescheduleAsync(
+        AppointmentReschedule change,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        _context.AppointmentReschedules.Add(change);
+
+        return Task.CompletedTask;
+    }
 }

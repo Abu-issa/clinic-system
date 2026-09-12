@@ -21,7 +21,7 @@ public class Appointment
     public string? CancelledByUserId { get; private set; }
 
     public DateTimeOffset? CancelledAtUtc { get; private set; }
-
+    public byte[] RowVersion { get; private set; } = Array.Empty<byte>();
     private Appointment()
     {
     }
@@ -175,5 +175,84 @@ public class Appointment
         }
 
         Status = AppointmentStatus.InProgress;
+    }
+    public AppointmentReschedule Reschedule(
+    DateTimeOffset startsAt,
+    DateTimeOffset endsAt,
+    string reason,
+    string changedByUserId,
+    DateTimeOffset now)
+    {
+        if (Status != AppointmentStatus.Pending &&
+            Status != AppointmentStatus.Confirmed)
+        {
+            throw new InvalidOperationException(
+                "Only pending or confirmed appointments can be rescheduled.");
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        ArgumentException.ThrowIfNullOrWhiteSpace(changedByUserId);
+
+        var trimmedReason = reason.Trim();
+
+        if (trimmedReason.Length > 500)
+        {
+            throw new ArgumentException(
+                "Rescheduling reason cannot exceed 500 characters.",
+                nameof(reason));
+        }
+
+        if (changedByUserId.Length > 200)
+        {
+            throw new ArgumentException(
+                "User ID cannot exceed 200 characters.",
+                nameof(changedByUserId));
+        }
+
+        if (now == default)
+        {
+            throw new ArgumentException(
+                "Change time is required.",
+                nameof(now));
+        }
+
+        var startsAtUtc = startsAt.ToUniversalTime();
+        var endsAtUtc = endsAt.ToUniversalTime();
+        var changedAtUtc = now.ToUniversalTime();
+
+        if (endsAtUtc <= startsAtUtc)
+        {
+            throw new ArgumentException(
+                "Appointment end must be after its start.",
+                nameof(endsAt));
+        }
+
+        if (startsAtUtc <= changedAtUtc)
+        {
+            throw new ArgumentException(
+                "The new appointment start must be in the future.",
+                nameof(startsAt));
+        }
+
+        if (startsAtUtc == StartsAtUtc && endsAtUtc == EndsAtUtc)
+        {
+            throw new InvalidOperationException(
+                "The new appointment time must differ from the current time.");
+        }
+
+        var change = new AppointmentReschedule(
+            Id,
+            StartsAtUtc,
+            EndsAtUtc,
+            startsAtUtc,
+            endsAtUtc,
+            trimmedReason,
+            changedByUserId,
+            changedAtUtc);
+
+        StartsAtUtc = startsAtUtc;
+        EndsAtUtc = endsAtUtc;
+
+        return change;
     }
 }

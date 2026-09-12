@@ -1,6 +1,7 @@
 using Clinic.Application.Abstractions;
 using Clinic.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Clinic.Application.Exceptions;
 
 namespace Clinic.Infrastructure.Persistence;
 
@@ -20,7 +21,8 @@ public sealed class ClinicDbContext : DbContext, IUnitOfWork
     Set<DoctorWorkingPeriod>();
     public DbSet<DoctorDayClosure> DoctorDayClosures =>
     Set<DoctorDayClosure>();
-
+    public DbSet<AppointmentReschedule> AppointmentReschedules =>
+    Set<AppointmentReschedule>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -65,6 +67,8 @@ public sealed class ClinicDbContext : DbContext, IUnitOfWork
 
             appointment.Property(x => x.CancelledAtUtc)
                 .HasColumnType("datetimeoffset");
+            appointment.Property(x => x.RowVersion)
+    .IsRowVersion();
 
             appointment.HasOne<Patient>()
                 .WithMany()
@@ -172,6 +176,77 @@ public sealed class ClinicDbContext : DbContext, IUnitOfWork
             })
                 .IsUnique();
         });
+        modelBuilder.Entity<AppointmentReschedule>(change =>
+        {
+            change.ToTable(
+                "AppointmentReschedules",
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_AppointmentReschedules_PreviousTimeRange",
+                        "[PreviousEndsAtUtc] > [PreviousStartsAtUtc]");
+
+                    table.HasCheckConstraint(
+                        "CK_AppointmentReschedules_NewTimeRange",
+                        "[NewEndsAtUtc] > [NewStartsAtUtc]");
+                });
+
+            change.HasKey(x => x.Id);
+
+            change.Property(x => x.Id)
+                .ValueGeneratedNever();
+
+            change.Property(x => x.PreviousStartsAtUtc)
+                .HasColumnType("datetimeoffset")
+                .IsRequired();
+
+            change.Property(x => x.PreviousEndsAtUtc)
+                .HasColumnType("datetimeoffset")
+                .IsRequired();
+
+            change.Property(x => x.NewStartsAtUtc)
+                .HasColumnType("datetimeoffset")
+                .IsRequired();
+
+            change.Property(x => x.NewEndsAtUtc)
+                .HasColumnType("datetimeoffset")
+                .IsRequired();
+
+            change.Property(x => x.ChangedAtUtc)
+                .HasColumnType("datetimeoffset")
+                .IsRequired();
+
+            change.Property(x => x.Reason)
+                .HasMaxLength(500)
+                .IsRequired();
+
+            change.Property(x => x.ChangedByUserId)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            change.HasOne<Appointment>()
+                .WithMany()
+                .HasForeignKey(x => x.AppointmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            change.HasIndex(x => new
+            {
+                x.AppointmentId,
+                x.ChangedAtUtc
+            });
+        });
+    }
+    public override async Task<int> SaveChangesAsync(
+    CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new PersistenceConcurrencyException(exception);
+        }
     }
 
 }

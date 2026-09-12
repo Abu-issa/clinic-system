@@ -27,6 +27,7 @@
     <ItemGroup>
       <ProjectReference Include="..\..\src\Clinic.Application\Clinic.Application.csproj" />
       <ProjectReference Include="..\..\src\Clinic.Domain\Clinic.Domain.csproj" />
+      <ProjectReference Include="..\Clinic.IntegrationTests\Clinic.IntegrationTests.csproj" />
     </ItemGroup>
 
     <ItemGroup>

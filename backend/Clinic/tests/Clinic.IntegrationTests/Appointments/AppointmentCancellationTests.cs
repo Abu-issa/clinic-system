@@ -6,6 +6,7 @@ using Clinic.Infrastructure.Repositories;
 using Clinic.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+using Clinic.Application.Schedules;
 
 namespace Clinic.IntegrationTests.Appointments;
 
@@ -114,6 +115,7 @@ public sealed class AppointmentCancellationTests :
 
         Guid replacementId;
 
+
         // حجز جديد بنفس الفترة باستخدام خدمة الحجز الفعلية.
         await using (var context = _database.CreateContext())
         {
@@ -172,7 +174,102 @@ public sealed class AppointmentCancellationTests :
         Assert.Null(replacement.CancelledByUserId);
         Assert.Null(replacement.CancelledAtUtc);
     }
+    [Fact]
+    public async Task Cancel_RemovesAppointmentFromCurrentClosureAffectedList()
+    {
+        var doctor = new Doctor("طبيب اختبار معالجة الإغلاق");
+        var patient = new Patient(
+            "مريض تجريبي",
+            "+962790000008");
 
+        var startsAtUtc = TestWorkingHours.CreateFutureStart();
+
+        var localStart = TimeZoneInfo.ConvertTime(
+            startsAtUtc,
+            TestWorkingHours.ClinicTimeZone);
+
+        var localDate = DateOnly.FromDateTime(localStart.DateTime);
+
+        var appointment = new Appointment(
+            patient.Id,
+            doctor.Id,
+            startsAtUtc,
+            startsAtUtc.AddMinutes(30));
+
+        appointment.Confirm();
+
+        var closure = new DoctorDayClosure(
+            doctor.Id,
+            localDate,
+            "إجازة تجريبية");
+
+        await using (var seed = _database.CreateContext())
+        {
+            seed.Doctors.Add(doctor);
+            seed.Patients.Add(patient);
+            seed.Appointments.Add(appointment);
+            seed.DoctorDayClosures.Add(closure);
+
+            await seed.SaveChangesAsync();
+        }
+
+        async Task<DoctorDayClosureDetails?> ReadClosureAsync()
+        {
+            await using var context = _database.CreateContext();
+
+            var service = new DoctorDayClosureService(
+                new DoctorRepository(context),
+                new DoctorDayClosureRepository(context),
+                context,
+                new SqlBookingTransaction(context),
+                TestWorkingHours.ClinicTimeZone,
+                TimeProvider.System);
+
+            return await service.GetAsync(doctor.Id, localDate);
+        }
+
+        var before = await ReadClosureAsync();
+
+        Assert.NotNull(before);
+        Assert.Equal(
+            appointment.Id,
+            Assert.Single(before.AffectedAppointments).AppointmentId);
+
+        await using (var context = _database.CreateContext())
+        {
+            var result = await CreateCancellationService(context)
+                .CancelAsync(
+                    new CancelAppointmentRequest(
+                        appointment.Id,
+                        doctor.Id,
+                        "إلغاء بسبب إجازة الطبيب"),
+                    "test-receptionist");
+
+            Assert.True(result.IsSuccess);
+        }
+
+        var after = await ReadClosureAsync();
+
+        Assert.NotNull(after);
+        Assert.Equal(closure.Id, after.ClosureId);
+        Assert.Empty(after.AffectedAppointments);
+
+        await using var verification = _database.CreateContext();
+
+        var savedAppointment = await verification.Appointments
+            .SingleAsync(x => x.Id == appointment.Id);
+
+        Assert.Equal(
+            AppointmentStatus.Cancelled,
+            savedAppointment.Status);
+
+        Assert.Equal(
+            "إلغاء بسبب إجازة الطبيب",
+            savedAppointment.CancellationReason);
+
+        Assert.True(await verification.DoctorDayClosures
+            .AnyAsync(x => x.Id == closure.Id));
+    }
     private static AppointmentCancellationService
         CreateCancellationService(ClinicDbContext context)
     {
