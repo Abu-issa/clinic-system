@@ -110,6 +110,19 @@ builder.Services.AddAuthorization(options =>
                 Guid.TryParse(claim.Value, out var allowedDoctorId) &&
                 allowedDoctorId == doctorId));
     });
+    options.AddPolicy("RescheduleDoctorAppointment", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Doctor", "Receptionist");
+        policy.RequireClaim("amr", "mfa");
+        policy.RequireClaim("permission", "appointments.reschedule");
+        policy.RequireAssertion(context =>
+            context.Resource is Guid doctorId &&
+            doctorId != Guid.Empty &&
+            context.User.FindAll("appointment_doctor_id").Any(claim =>
+                Guid.TryParse(claim.Value, out var allowedDoctorId) &&
+                allowedDoctorId == doctorId));
+    });
     options.AddPolicy("CancelDoctorAppointment", policy =>
     {
         policy.RequireAuthenticatedUser();

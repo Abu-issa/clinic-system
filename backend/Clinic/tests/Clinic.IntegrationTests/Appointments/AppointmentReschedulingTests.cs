@@ -1,4 +1,5 @@
 using Clinic.Application.Appointments;
+using Clinic.Application.Abstractions;
 using Clinic.Domain.Entities;
 using Clinic.Domain.Enums;
 using Clinic.Infrastructure.Persistence;
@@ -318,6 +319,84 @@ public sealed class AppointmentReschedulingTests :
         Assert.Equal(firstStart, change.NewStartsAtUtc);
         Assert.Equal(firstEnd, change.NewEndsAtUtc);
     }
+    [Fact]
+    public async Task Reschedule_SaveTimeConflict_RollsBackAndPreservesCompetingUpdate()
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+        var token = timeout.Token;
+        var doctor = new Doctor("Concurrency test doctor");
+        var patient = new Patient("Concurrency test patient", "0790000011");
+        var start = TestWorkingHours.CreateFutureStart();
+        var appointment = new Appointment(patient.Id, doctor.Id, start, start.AddMinutes(30));
+        await using (var seed = _database.CreateContext())
+        {
+            seed.AddRange(doctor, patient, appointment);
+            seed.DoctorWorkingPeriods.AddRange(TestWorkingHours.CreatePeriods(doctor.Id));
+            await seed.SaveChangesAsync(token);
+        }
+
+        byte[]? competingVersion = null;
+        await using var context = _database.CreateContext();
+        var unitOfWork = new BeforeSaveUnitOfWork(context, async cancellationToken =>
+        {
+            Assert.Equal(EntityState.Modified, context.Entry(
+                Assert.Single(context.ChangeTracker.Entries<Appointment>()).Entity).State);
+            Assert.Single(context.ChangeTracker.Entries<AppointmentReschedule>());
+
+            // Deliberately bypass the application lock to exercise EF's save-time
+            // concurrency protection against a writer outside the locking protocol.
+            await using var competing = _database.CreateContext();
+            var current = await competing.Appointments.SingleAsync(
+                x => x.Id == appointment.Id, cancellationToken);
+            current.Confirm();
+            await competing.SaveChangesAsync(cancellationToken);
+            competingVersion = current.RowVersion.ToArray();
+        });
+        var service = new AppointmentReschedulingService(
+            new AppointmentRepository(context), new DoctorRepository(context),
+            new WorkingScheduleRepository(context, TestWorkingHours.ClinicTimeZone),
+            unitOfWork, new SqlBookingTransaction(context), TimeProvider.System);
+
+        var result = await service.RescheduleAsync(new RescheduleAppointmentRequest(
+            appointment.Id, doctor.Id, start.AddHours(1), start.AddHours(1).AddMinutes(30),
+            "Failed move", appointment.RowVersion.ToArray()), "rescheduling-user", token);
+
+        Assert.Equal(ReschedulingError.AppointmentChanged, result.Error);
+        Assert.Null(result.ChangeId);
+        Assert.NotNull(competingVersion);
+        Assert.Null(context.Database.CurrentTransaction);
+        await using var verification = _database.CreateContext();
+        var saved = await verification.Appointments.SingleAsync(x => x.Id == appointment.Id, token);
+        Assert.Equal(AppointmentStatus.Confirmed, saved.Status);
+        Assert.Equal(start, saved.StartsAtUtc);
+        Assert.Equal(start.AddMinutes(30), saved.EndsAtUtc);
+        Assert.Equal(competingVersion, saved.RowVersion);
+        Assert.False(await verification.AppointmentReschedules.AnyAsync(
+            x => x.AppointmentId == appointment.Id, token));
+
+        // A fresh operation must acquire the released lock and successfully save.
+        var retry = await CreateService(verification).RescheduleAsync(
+            new RescheduleAppointmentRequest(appointment.Id, doctor.Id,
+                start.AddHours(1), start.AddHours(1).AddMinutes(30), "Retry",
+                saved.RowVersion.ToArray()), "retry-user", token);
+        Assert.True(retry.IsSuccess);
+        await using var final = _database.CreateContext();
+        var history = await final.AppointmentReschedules.Where(
+            x => x.AppointmentId == appointment.Id).ToListAsync(token);
+        Assert.Equal("Retry", Assert.Single(history).Reason);
+    }
+
+    private sealed class BeforeSaveUnitOfWork(
+        ClinicDbContext context,
+        Func<CancellationToken, Task> beforeSave) : IUnitOfWork
+    {
+        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            await beforeSave(cancellationToken);
+            return await context.SaveChangesAsync(cancellationToken);
+        }
+    }
+
     private static AppointmentReschedulingService CreateService(
         ClinicDbContext context)
     {

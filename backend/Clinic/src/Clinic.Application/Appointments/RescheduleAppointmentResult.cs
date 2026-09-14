@@ -24,19 +24,24 @@ public sealed class RescheduleAppointmentResult
 {
     private RescheduleAppointmentResult(
         Guid? changeId,
-        ReschedulingError error)
+        ReschedulingError error,
+        byte[]? rowVersion = null)
     {
         ChangeId = changeId;
         Error = error;
+        _rowVersion = rowVersion?.ToArray();
     }
 
     public Guid? ChangeId { get; }
+
+    private readonly byte[]? _rowVersion;
+    public byte[]? RowVersion => _rowVersion?.ToArray();
 
     public ReschedulingError Error { get; }
 
     public bool IsSuccess => Error == ReschedulingError.None;
 
-    public static RescheduleAppointmentResult Success(Guid changeId)
+    public static RescheduleAppointmentResult Success(Guid changeId, byte[] rowVersion)
     {
         if (changeId == Guid.Empty)
         {
@@ -45,9 +50,16 @@ public sealed class RescheduleAppointmentResult
                 nameof(changeId));
         }
 
+        ArgumentNullException.ThrowIfNull(rowVersion);
+        if (rowVersion.Length != 8)
+        {
+            throw new ArgumentException("An eight-byte row version is required.", nameof(rowVersion));
+        }
+
         return new RescheduleAppointmentResult(
             changeId,
-            ReschedulingError.None);
+            ReschedulingError.None,
+            rowVersion);
     }
 
     public static RescheduleAppointmentResult Failure(

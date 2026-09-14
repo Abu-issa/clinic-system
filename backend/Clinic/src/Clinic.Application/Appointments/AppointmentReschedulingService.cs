@@ -187,10 +187,23 @@ public sealed class AppointmentReschedulingService
 
                 await _unitOfWork.SaveChangesAsync(token);
 
-                return RescheduleAppointmentResult.Success(change.Id);
+                return RescheduleAppointmentResult.Success(change.Id, appointment.RowVersion);
             },
             cancellationToken);
     }
+    public async Task<AppointmentReschedulingDetails?> GetAsync(
+        Guid appointmentId,
+        Guid doctorId,
+        CancellationToken cancellationToken = default)
+    {
+        var appointment = await _appointments.GetForDoctorAsync(
+            appointmentId, doctorId, cancellationToken);
+
+        return appointment is null ? null : new AppointmentReschedulingDetails(
+            appointment.Id, appointment.DoctorId, appointment.StartsAtUtc,
+            appointment.EndsAtUtc, appointment.Status, appointment.RowVersion.ToArray());
+    }
+
     private async Task<RescheduleAppointmentResult>
     ExecuteWithConcurrencyHandlingAsync(
         Guid doctorId,
