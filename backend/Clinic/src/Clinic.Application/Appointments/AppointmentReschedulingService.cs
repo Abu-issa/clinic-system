@@ -12,6 +12,7 @@ public sealed class AppointmentReschedulingService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBookingTransaction _transaction;
     private readonly TimeProvider _timeProvider;
+    private readonly BookingPolicy _policy;
 
     public AppointmentReschedulingService(
         IAppointmentRepository appointments,
@@ -19,7 +20,8 @@ public sealed class AppointmentReschedulingService
         IWorkingScheduleRepository workingSchedule,
         IUnitOfWork unitOfWork,
         IBookingTransaction transaction,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        BookingPolicy policy)
     {
         _appointments = appointments;
         _doctors = doctors;
@@ -27,6 +29,7 @@ public sealed class AppointmentReschedulingService
         _unitOfWork = unitOfWork;
         _transaction = transaction;
         _timeProvider = timeProvider;
+        _policy = policy;
     }
 
     public async Task<RescheduleAppointmentResult> RescheduleAsync(
@@ -139,17 +142,15 @@ public sealed class AppointmentReschedulingService
                         ReschedulingError.TimeUnchanged);
                 }
 
-                var isWithinWorkingHours =
-                    await _workingSchedule.IsWithinActivePeriodAsync(
-                        request.DoctorId,
-                        startsAtUtc,
-                        endsAtUtc,
-                        token);
+                if (endsAtUtc - startsAtUtc != appointment.EndsAtUtc - appointment.StartsAtUtc)
+                    return Failure(ReschedulingError.DurationChanged);
 
-                if (!isWithinWorkingHours)
+                var day = await _workingSchedule.GetDayAsync(
+                    request.DoctorId, _policy.LocalDate(startsAtUtc), token);
+                var policyError = _policy.ValidateSlot(day, startsAtUtc, endsAtUtc, _timeProvider.GetUtcNow());
+                if (policyError != BookingError.None)
                 {
-                    return Failure(
-                        ReschedulingError.OutsideWorkingHours);
+                    return Failure(MapPolicyError(policyError));
                 }
 
                 var hasOverlap =
@@ -168,10 +169,10 @@ public sealed class AppointmentReschedulingService
 
                 var now = _timeProvider.GetUtcNow();
 
-                if (startsAtUtc <= now)
+                policyError = _policy.ValidateWindow(startsAtUtc, now);
+                if (policyError != BookingError.None)
                 {
-                    return Failure(
-                        ReschedulingError.StartMustBeInFuture);
+                    return Failure(MapPolicyError(policyError));
                 }
 
                 var change = appointment.Reschedule(
@@ -201,8 +202,20 @@ public sealed class AppointmentReschedulingService
 
         return appointment is null ? null : new AppointmentReschedulingDetails(
             appointment.Id, appointment.DoctorId, appointment.StartsAtUtc,
-            appointment.EndsAtUtc, appointment.Status, appointment.RowVersion.ToArray());
+            appointment.EndsAtUtc, appointment.Status, appointment.RowVersion.ToArray(), appointment.Type);
     }
+
+    private static ReschedulingError MapPolicyError(BookingError error) => error switch
+    {
+        BookingError.StartMustBeInFuture => ReschedulingError.StartMustBeInFuture,
+        BookingError.OutsideWorkingHours => ReschedulingError.OutsideWorkingHours,
+        BookingError.OffGrid => ReschedulingError.OffGrid,
+        BookingError.InsufficientNotice => ReschedulingError.InsufficientNotice,
+        BookingError.OutsideBookingWindow or BookingError.InvalidDate => ReschedulingError.OutsideBookingWindow,
+        BookingError.InvalidLocalTime => ReschedulingError.InvalidLocalTime,
+        BookingError.InvalidTimeRange => ReschedulingError.InvalidTimeRange,
+        _ => throw new InvalidOperationException("Unsupported booking policy error.")
+    };
 
     private async Task<RescheduleAppointmentResult>
     ExecuteWithConcurrencyHandlingAsync(

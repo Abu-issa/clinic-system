@@ -1,4 +1,5 @@
 using Clinic.Application.Abstractions;
+using Clinic.Application.Appointments;
 using Clinic.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -77,5 +78,17 @@ public sealed class WorkingScheduleRepository :
                     period.StartsAtLocal <= startTime &&
                     period.EndsAtLocal >= endTime,
                 cancellationToken);
+    }
+
+    public async Task<WorkingDay> GetDayAsync(Guid doctorId, DateOnly localDate,
+        CancellationToken cancellationToken = default)
+    {
+        var closed = await _context.DoctorDayClosures.AnyAsync(
+            x => x.DoctorId == doctorId && x.LocalDate == localDate, cancellationToken);
+        var periods = await _context.DoctorWorkingPeriods.AsNoTracking()
+            .Where(x => x.DoctorId == doctorId && x.DayOfWeek == localDate.DayOfWeek && x.IsActive)
+            .Select(x => new WorkingPeriod(x.StartsAtLocal, x.EndsAtLocal))
+            .ToListAsync(cancellationToken);
+        return new WorkingDay(closed, periods);
     }
 }

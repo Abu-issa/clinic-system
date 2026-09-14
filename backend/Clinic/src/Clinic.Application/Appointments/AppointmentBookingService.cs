@@ -12,6 +12,7 @@ public sealed class AppointmentBookingService
     private readonly IBookingTransaction _bookingTransaction;
     private readonly TimeProvider _timeProvider;
     private readonly IWorkingScheduleRepository _workingSchedule;
+    private readonly BookingPolicy _policy;
 
     public AppointmentBookingService(
         IPatientRepository patients,
@@ -20,7 +21,8 @@ public sealed class AppointmentBookingService
         IUnitOfWork unitOfWork,
         IBookingTransaction bookingTransaction,
         IWorkingScheduleRepository workingSchedule,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        BookingPolicy policy)
     {
         _patients = patients;
         _doctors = doctors;
@@ -29,6 +31,7 @@ public sealed class AppointmentBookingService
         _bookingTransaction = bookingTransaction;
         _workingSchedule = workingSchedule;
         _timeProvider = timeProvider;
+        _policy = policy;
     }
 
     public async Task<BookAppointmentResult> BookAsync(
@@ -49,14 +52,17 @@ public sealed class AppointmentBookingService
                 BookingError.InvalidDoctorId);
         }
 
-        if (request.EndsAt <= request.StartsAt)
+        if (!Enum.IsDefined(request.AppointmentType))
         {
             return BookAppointmentResult.Failure(
-                BookingError.InvalidTimeRange);
+                BookingError.InvalidAppointmentType);
         }
 
         var startsAtUtc = request.StartsAt.ToUniversalTime();
-        var endsAtUtc = request.EndsAt.ToUniversalTime();
+        var duration = _policy.Duration(request.AppointmentType);
+        if (startsAtUtc > DateTimeOffset.MaxValue - duration)
+            return BookAppointmentResult.Failure(BookingError.InvalidTimeRange);
+        var endsAtUtc = startsAtUtc + duration;
 
         if (startsAtUtc <= _timeProvider.GetUtcNow())
         {
@@ -100,17 +106,12 @@ public sealed class AppointmentBookingService
                     return BookAppointmentResult.Failure(
                         BookingError.DoctorInactive);
                 }
-                var isWithinWorkingHours =
-    await _workingSchedule.IsWithinActivePeriodAsync(
-        request.DoctorId,
-        startsAtUtc,
-        endsAtUtc,
-        token);
-
-                if (!isWithinWorkingHours)
+                var day = await _workingSchedule.GetDayAsync(
+                    request.DoctorId, _policy.LocalDate(startsAtUtc), token);
+                var policyError = _policy.ValidateSlot(day, startsAtUtc, endsAtUtc, _timeProvider.GetUtcNow());
+                if (policyError != BookingError.None)
                 {
-                    return BookAppointmentResult.Failure(
-                        BookingError.OutsideWorkingHours);
+                    return BookAppointmentResult.Failure(policyError);
                 }
 
                 var hasOverlap = await _appointments.HasOverlapAsync(
@@ -125,11 +126,15 @@ public sealed class AppointmentBookingService
                         BookingError.TimeSlotUnavailable);
                 }
 
+                policyError = _policy.ValidateWindow(startsAtUtc, _timeProvider.GetUtcNow());
+                if (policyError != BookingError.None) return BookAppointmentResult.Failure(policyError);
+
                 var appointment = new Appointment(
                     request.PatientId,
                     request.DoctorId,
                     startsAtUtc,
-                    endsAtUtc);
+                    endsAtUtc,
+                    request.AppointmentType);
 
                 await _appointments.AddAsync(appointment, token);
 

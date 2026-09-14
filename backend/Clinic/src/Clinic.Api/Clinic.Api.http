@@ -4,3 +4,56 @@ GET {{Clinic.Api_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+# Development examples only. Replace IDs/date/start/version and supply an existing
+# staff cookie and CSRF token. This project does not implement production login
+# or CSRF-token issuance. Use the API's HTTPS launch URL for secure cookies.
+@StaffHost = https://localhost:7152
+@DoctorId = 00000000-0000-0000-0000-000000000001
+@PatientId = 00000000-0000-0000-0000-000000000002
+@AppointmentId = 00000000-0000-0000-0000-000000000003
+@LocalDate = 2030-01-07
+@StartUtc = 2030-01-07T06:00:00Z
+@EndUtc = 2030-01-07T06:30:00Z
+@StaffCookie = REPLACE_WITH_EXISTING_STAFF_COOKIE
+@CsrfCookie = REPLACE_WITH_EXISTING_ANTIFORGERY_COOKIE
+@CsrfToken = REPLACE_WITH_EXISTING_CSRF_TOKEN
+@RowVersion = REPLACE_WITH_CURRENT_BASE64_VERSION
+
+### Advisory availability; requires appointments.availability and doctor scope.
+GET {{StaffHost}}/api/staff/doctors/{{DoctorId}}/availability?date={{LocalDate}}&appointmentType=Consultation
+Cookie: __Host-Clinic.Staff={{StaffCookie}}
+
+### New booking: end time is derived by the server. Also supports FollowUp.
+POST {{StaffHost}}/api/staff/appointments
+Content-Type: application/json
+Cookie: __Host-Clinic.Staff={{StaffCookie}}; __Host-Clinic.Antiforgery={{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "patientId": "{{PatientId}}",
+  "doctorId": "{{DoctorId}}",
+  "startsAt": "{{StartUtc}}",
+  "appointmentType": "Consultation"
+}
+
+### Read current appointment times/type/version; requires rescheduling permission.
+GET {{StaffHost}}/api/staff/doctors/{{DoctorId}}/appointments/{{AppointmentId}}/rescheduling
+Cookie: __Host-Clinic.Staff={{StaffCookie}}
+
+### Uses stored duration/type and excludes only this authorized appointment.
+GET {{StaffHost}}/api/staff/doctors/{{DoctorId}}/appointments/{{AppointmentId}}/rescheduling/availability?date={{LocalDate}}
+Cookie: __Host-Clinic.Staff={{StaffCookie}}
+
+### EndsAt must preserve the stored duration, even if policy duration has changed.
+POST {{StaffHost}}/api/staff/doctors/{{DoctorId}}/appointments/{{AppointmentId}}/rescheduling
+Content-Type: application/json
+Cookie: __Host-Clinic.Staff={{StaffCookie}}; __Host-Clinic.Antiforgery={{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "startsAt": "{{StartUtc}}",
+  "endsAt": "{{EndUtc}}",
+  "reason": "Patient requested a different time",
+  "expectedRowVersion": "{{RowVersion}}"
+}

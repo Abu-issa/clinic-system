@@ -12,6 +12,7 @@ public sealed class BookingConcurrencyTests :
     IClassFixture<SqlDatabaseFixture>
 {
     private readonly SqlDatabaseFixture _database;
+    private BookingPolicy _policy = TestWorkingHours.Policy;
 
     public BookingConcurrencyTests(SqlDatabaseFixture database)
     {
@@ -26,6 +27,10 @@ public sealed class BookingConcurrencyTests :
         int secondStartMinutes,
         int secondEndMinutes)
     {
+        _policy = new BookingPolicy(new BookingPolicySettings
+        {
+            FollowUpMinutes = secondEndMinutes - secondStartMinutes
+        }, TestWorkingHours.ClinicTimeZone);
         var doctor = new Doctor("طبيب اختبار التزامن");
         var patient = new Patient("مريض تجريبي", "0790000000");
 
@@ -37,13 +42,13 @@ public sealed class BookingConcurrencyTests :
             patient.Id,
             doctor.Id,
             start,
-            start.AddMinutes(30));
+            Clinic.Domain.Enums.AppointmentType.Consultation);
 
         var secondRequest = new BookAppointmentRequest(
             patient.Id,
             doctor.Id,
             start.AddMinutes(secondStartMinutes),
-            start.AddMinutes(secondEndMinutes));
+            Clinic.Domain.Enums.AppointmentType.FollowUp);
 
         var results = await BookTogetherAsync(
             firstRequest,
@@ -85,7 +90,7 @@ public sealed class BookingConcurrencyTests :
             patient.Id,
             doctor.Id,
             start,
-            start.AddMinutes(30));
+            Clinic.Domain.Enums.AppointmentType.Consultation);
 
         // Save inside a transaction, then fail before commit.
         await using (var failingContext = _database.CreateContext())
@@ -103,7 +108,7 @@ public sealed class BookingConcurrencyTests :
                                 patient.Id,
                                 doctor.Id,
                                 request.StartsAt,
-                                request.EndsAt);
+                                request.StartsAt.AddMinutes(30));
 
                             failingContext.Appointments.Add(appointment);
 
@@ -167,13 +172,13 @@ public sealed class BookingConcurrencyTests :
             patient.Id,
             doctor.Id,
             start,
-            start.AddMinutes(30));
+            Clinic.Domain.Enums.AppointmentType.Consultation);
 
         var secondRequest = new BookAppointmentRequest(
             patient.Id,
             doctor.Id,
             start.AddMinutes(30),
-            start.AddMinutes(60));
+            Clinic.Domain.Enums.AppointmentType.Consultation);
 
         var results = await BookTogetherAsync(
             firstRequest,
@@ -210,13 +215,13 @@ public sealed class BookingConcurrencyTests :
             firstPatient.Id,
             firstDoctor.Id,
             start,
-            start.AddMinutes(30));
+            Clinic.Domain.Enums.AppointmentType.Consultation);
 
         var secondRequest = new BookAppointmentRequest(
             secondPatient.Id,
             secondDoctor.Id,
             start,
-            start.AddMinutes(30));
+            Clinic.Domain.Enums.AppointmentType.Consultation);
 
         var results = await BookTogetherAsync(
             firstRequest,
@@ -290,7 +295,7 @@ public sealed class BookingConcurrencyTests :
         return await service.BookAsync(request, cancellationToken);
     }
 
-    private static AppointmentBookingService CreateService(
+    private AppointmentBookingService CreateService(
       ClinicDbContext context)
     {
         return new AppointmentBookingService(
@@ -302,6 +307,6 @@ public sealed class BookingConcurrencyTests :
             new WorkingScheduleRepository(
                 context,
                 TestWorkingHours.ClinicTimeZone),
-            TimeProvider.System);
+            TimeProvider.System, _policy);
     }
 }

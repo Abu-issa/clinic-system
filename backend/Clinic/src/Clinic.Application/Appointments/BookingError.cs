@@ -11,5 +11,13 @@ public enum BookingError
         InvalidDoctorId = 6,
     DoctorNotFound = 7,
     DoctorInactive = 8,
-    OutsideWorkingHours = 9
+    OutsideWorkingHours = 9,
+    InvalidAppointmentType = 10,
+    InvalidDate = 11,
+    OutsideBookingWindow = 12,
+    InsufficientNotice = 13,
+    OffGrid = 14,
+    InvalidLocalTime = 15,
+    AppointmentNotFound = 16,
+    AppointmentCannotBeRescheduled = 17
 }

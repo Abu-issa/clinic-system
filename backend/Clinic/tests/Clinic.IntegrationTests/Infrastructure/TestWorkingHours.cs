@@ -4,6 +4,8 @@ namespace Clinic.IntegrationTests.Infrastructure;
 
 public static class TestWorkingHours
 {
+    public static Clinic.Application.Appointments.BookingPolicy Policy =>
+        new(new Clinic.Application.Appointments.BookingPolicySettings(), ClinicTimeZone);
     public static TimeZoneInfo ClinicTimeZone =>
         TimeZoneInfo.FindSystemTimeZoneById("Asia/Amman");
 

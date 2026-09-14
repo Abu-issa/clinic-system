@@ -4,6 +4,10 @@ namespace Clinic.Application.Abstractions;
 
 public interface IAppointmentRepository
 {
+    Task<IReadOnlyList<Clinic.Application.Appointments.AppointmentSlot>> GetBlockingIntervalsAsync(
+        Guid doctorId, DateTimeOffset fromUtc, DateTimeOffset toUtc,
+        Guid? excludedAppointmentId = null, CancellationToken cancellationToken = default);
+
     Task<bool> HasOverlapAsync(
         Guid doctorId,
         DateTimeOffset startsAtUtc,

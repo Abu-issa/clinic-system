@@ -14,6 +14,9 @@ public class Appointment
 
     public AppointmentStatus Status { get; private set; }
 
+    // Null explicitly represents legacy appointments whose type is unknown.
+    public AppointmentType? Type { get; private set; }
+
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public Guid DoctorId { get; private set; }
     public string? CancellationReason { get; private set; }
@@ -30,7 +33,8 @@ public class Appointment
     Guid patientId,
     Guid doctorId,
     DateTimeOffset startsAt,
-    DateTimeOffset endsAt)
+    DateTimeOffset endsAt,
+    AppointmentType? type = null)
     {
         if (patientId == Guid.Empty)
         {
@@ -53,6 +57,12 @@ public class Appointment
                 nameof(endsAt));
         }
 
+        if (type.HasValue && !Enum.IsDefined(type.Value))
+        {
+            throw new ArgumentOutOfRangeException(nameof(type));
+        }
+
+        Type = type;
         Id = Guid.NewGuid();
         PatientId = patientId;
         DoctorId = doctorId;

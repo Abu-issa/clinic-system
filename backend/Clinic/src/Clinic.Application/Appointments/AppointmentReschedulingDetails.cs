@@ -8,4 +8,5 @@ public sealed record AppointmentReschedulingDetails(
     DateTimeOffset StartsAtUtc,
     DateTimeOffset EndsAtUtc,
     AppointmentStatus Status,
-    byte[] RowVersion);
+    byte[] RowVersion,
+    AppointmentType? AppointmentType);

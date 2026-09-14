@@ -64,13 +64,13 @@ public sealed class BookingDayClosureTests :
                 new WorkingScheduleRepository(
                     context,
                     TestWorkingHours.ClinicTimeZone),
-                TimeProvider.System);
+                TimeProvider.System, TestWorkingHours.Policy);
 
             var request = new BookAppointmentRequest(
                 patient.Id,
                 doctor.Id,
                 startsAtUtc,
-                endsAtUtc);
+            Clinic.Domain.Enums.AppointmentType.Consultation);
 
             var result = await service.BookAsync(request);
 

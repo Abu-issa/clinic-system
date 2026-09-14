@@ -210,7 +210,7 @@ public sealed class DoctorDayClosureServiceTests :
                 new WorkingScheduleRepository(
                     context,
                     TestWorkingHours.ClinicTimeZone),
-                TimeProvider.System);
+                TimeProvider.System, TestWorkingHours.Policy);
 
             await startGate.Task.WaitAsync(token);
 
@@ -219,7 +219,7 @@ public sealed class DoctorDayClosureServiceTests :
                     patient.Id,
                     doctor.Id,
                     startsAtUtc,
-                    endsAtUtc),
+            Clinic.Domain.Enums.AppointmentType.Consultation),
                 token);
         }
 

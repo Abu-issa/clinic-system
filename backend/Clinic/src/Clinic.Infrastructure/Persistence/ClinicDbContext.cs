@@ -59,6 +59,7 @@ public sealed class ClinicDbContext : DbContext, IUnitOfWork
             appointment.Property(x => x.Status)
                 .HasConversion<int>()
                 .IsRequired();
+            appointment.Property(x => x.Type).HasConversion<int>();
             appointment.Property(x => x.CancellationReason)
     .HasMaxLength(500);
 

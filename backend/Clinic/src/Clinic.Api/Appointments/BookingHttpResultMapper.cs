@@ -22,8 +22,21 @@ public static class BookingHttpResultMapper
                 statusCode: StatusCodes.Status201Created);
         }
 
-        var (statusCode, code, title) = result.Error switch
+        return MapError(result.Error, httpContext);
+    }
+
+    public static IResult MapError(BookingError error, HttpContext httpContext)
+    {
+        var (statusCode, code, title) = error switch
         {
+            BookingError.InvalidAppointmentType => (400, "invalid_appointment_type", "Choose Consultation or FollowUp."),
+            BookingError.InvalidDate => (400, "invalid_date", "A valid supported local date is required."),
+            BookingError.OutsideBookingWindow => (400, "outside_booking_window", "The date is outside the booking horizon."),
+            BookingError.InsufficientNotice => (400, "insufficient_notice", "The start does not meet minimum advance notice."),
+            BookingError.OffGrid => (400, "off_grid", "The start must align with a working period's slot interval."),
+            BookingError.InvalidLocalTime => (400, "invalid_local_time", "Ambiguous or invalid local appointment times are unsupported."),
+            BookingError.AppointmentNotFound => (404, "appointment_not_found", "Appointment was not found."),
+            BookingError.AppointmentCannotBeRescheduled => (409, "appointment_cannot_be_rescheduled", "The appointment cannot be rescheduled in its current state."),
             BookingError.InvalidPatientId =>
                 (
                     StatusCodes.Status400BadRequest,

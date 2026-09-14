@@ -128,14 +128,14 @@ public sealed class AppointmentCancellationTests :
                 new WorkingScheduleRepository(
                     context,
                     TestWorkingHours.ClinicTimeZone),
-                TimeProvider.System);
+                TimeProvider.System, TestWorkingHours.Policy);
 
             var result = await bookingService.BookAsync(
                 new BookAppointmentRequest(
                     patient.Id,
                     doctor.Id,
                     startsAtUtc,
-                    endsAtUtc));
+            Clinic.Domain.Enums.AppointmentType.Consultation));
 
             Assert.True(result.IsSuccess);
             Assert.True(result.AppointmentId.HasValue);

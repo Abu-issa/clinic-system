@@ -174,8 +174,8 @@ public sealed class AppointmentReschedulingHttpTests(SqlDatabaseFixture database
             new ClaimsPrincipal(new ClaimsIdentity(claims, "ClinicStaff")),
             new AuthenticationProperties
             {
-                IssuedUtc = DateTimeOffset.UtcNow,
-                ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(5)
+                IssuedUtc = factory.Services.GetRequiredService<TimeProvider>().GetUtcNow(),
+                ExpiresUtc = factory.Services.GetRequiredService<TimeProvider>().GetUtcNow().AddMinutes(5)
             }, "ClinicStaff");
         var options = factory.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>()
             .Get("ClinicStaff");

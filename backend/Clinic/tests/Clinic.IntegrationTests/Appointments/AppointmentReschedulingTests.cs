@@ -355,7 +355,7 @@ public sealed class AppointmentReschedulingTests :
         var service = new AppointmentReschedulingService(
             new AppointmentRepository(context), new DoctorRepository(context),
             new WorkingScheduleRepository(context, TestWorkingHours.ClinicTimeZone),
-            unitOfWork, new SqlBookingTransaction(context), TimeProvider.System);
+            unitOfWork, new SqlBookingTransaction(context), TimeProvider.System, TestWorkingHours.Policy);
 
         var result = await service.RescheduleAsync(new RescheduleAppointmentRequest(
             appointment.Id, doctor.Id, start.AddHours(1), start.AddHours(1).AddMinutes(30),
@@ -408,6 +408,6 @@ public sealed class AppointmentReschedulingTests :
                 TestWorkingHours.ClinicTimeZone),
             context,
             new SqlBookingTransaction(context),
-            TimeProvider.System);
+            TimeProvider.System, TestWorkingHours.Policy);
     }
 }

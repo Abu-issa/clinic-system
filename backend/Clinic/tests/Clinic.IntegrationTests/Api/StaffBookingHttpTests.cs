@@ -73,7 +73,7 @@ public sealed class StaffBookingHttpTests :
             patient.Id,
             doctor.Id,
             start,
-            start.AddMinutes(30));
+            Clinic.Domain.Enums.AppointmentType.Consultation);
 
         using var response = await client.PostAsJsonAsync(
             "/api/staff/appointments",
@@ -104,7 +104,7 @@ public sealed class StaffBookingHttpTests :
         Assert.Equal(patient.Id, saved.PatientId);
         Assert.Equal(doctor.Id, saved.DoctorId);
         Assert.Equal(request.StartsAt, saved.StartsAtUtc);
-        Assert.Equal(request.EndsAt, saved.EndsAtUtc);
+        Assert.Equal(request.StartsAt.AddMinutes(30), saved.EndsAtUtc);
         Assert.Equal(AppointmentStatus.Pending, saved.Status);
     }
 }

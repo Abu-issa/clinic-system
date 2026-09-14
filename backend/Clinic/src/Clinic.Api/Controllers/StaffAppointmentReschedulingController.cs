@@ -4,6 +4,7 @@ using Clinic.Application.Appointments;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
 
 namespace Clinic.Api.Controllers;
 
@@ -14,8 +15,26 @@ namespace Clinic.Api.Controllers;
 public sealed class StaffAppointmentReschedulingController(
     AppointmentReschedulingService service,
     IAuthorizationService authorization,
-    IAntiforgery antiforgery) : ControllerBase
+    IAntiforgery antiforgery,
+    AppointmentAvailabilityService availability) : ControllerBase
 {
+    [HttpGet("availability")]
+    [EndpointSummary("Read advisory rescheduling slots using the stored appointment duration")]
+    [EndpointDescription("Requires rescheduling permission and matching doctor scope. Excludes only this scoped appointment; preserves its stored duration and type, including unclassified legacy appointments. Date is YYYY-MM-DD in Asia/Amman.")]
+    [ProducesResponseType<AvailabilityDetails>(200)]
+    public async Task<IResult> GetAvailability(Guid doctorId, Guid appointmentId,
+        [FromQuery] string? date, CancellationToken cancellationToken)
+    {
+        var denied = await CheckAccessAsync(doctorId);
+        if (denied is not null) return denied;
+        if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var localDate))
+            return BookingHttpResultMapper.MapError(BookingError.InvalidDate, HttpContext);
+        var result = await availability.GetForReschedulingAsync(doctorId, appointmentId, localDate, cancellationToken);
+        return result.Error == BookingError.None ? Results.Ok(result.Details)
+            : BookingHttpResultMapper.MapError(result.Error, HttpContext);
+    }
+
     [HttpGet]
     public async Task<IResult> Get(
         Guid doctorId, Guid appointmentId, CancellationToken cancellationToken)
@@ -33,6 +52,7 @@ public sealed class StaffAppointmentReschedulingController(
     }
 
     [HttpPost]
+    [EndpointDescription("Preserves stored duration, doctor, type and status. EndsAt must preserve the existing duration; start must meet configured grid and window. Requires CSRF and expected Base64 RowVersion. Returns changeId and updated Base64 rowVersion.")]
     public async Task<IResult> Reschedule(
         Guid doctorId,
         Guid appointmentId,
@@ -67,6 +87,11 @@ public sealed class StaffAppointmentReschedulingController(
 
         var (status, title, code) = result.Error switch
         {
+            ReschedulingError.DurationChanged => (400, "Rescheduling must preserve the stored duration.", "duration_changed"),
+            ReschedulingError.OffGrid => (400, "The start must align with a working period's slot interval.", "off_grid"),
+            ReschedulingError.InsufficientNotice => (400, "The start does not meet minimum advance notice.", "insufficient_notice"),
+            ReschedulingError.OutsideBookingWindow => (400, "The date is outside the booking horizon.", "outside_booking_window"),
+            ReschedulingError.InvalidLocalTime => (400, "Ambiguous or invalid local times are unsupported.", "invalid_local_time"),
             ReschedulingError.InvalidAppointmentId => (400, "Appointment ID is invalid.", "invalid_appointment_id"),
             ReschedulingError.InvalidDoctorId => (400, "Doctor ID is invalid.", "invalid_doctor_id"),
             ReschedulingError.InvalidTimeRange => (400, "Appointment end must be after its start.", "invalid_time_range"),

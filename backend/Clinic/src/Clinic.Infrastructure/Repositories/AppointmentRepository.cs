@@ -1,4 +1,5 @@
 using Clinic.Application.Abstractions;
+using Clinic.Application.Appointments;
 using Clinic.Domain.Entities;
 using Clinic.Domain.Enums;
 using Clinic.Infrastructure.Persistence;
@@ -8,7 +9,22 @@ namespace Clinic.Infrastructure.Repositories;
 
 public sealed class AppointmentRepository : IAppointmentRepository
 {
+    public async Task<IReadOnlyList<AppointmentSlot>> GetBlockingIntervalsAsync(
+        Guid doctorId, DateTimeOffset fromUtc, DateTimeOffset toUtc,
+        Guid? excludedAppointmentId = null, CancellationToken cancellationToken = default)
+    {
+        return await BlockingAppointments(doctorId).AsNoTracking()
+            .Where(x =>
+                (!excludedAppointmentId.HasValue || x.Id != excludedAppointmentId.Value) &&
+                x.StartsAtUtc < toUtc && x.EndsAtUtc > fromUtc)
+            .Select(x => new AppointmentSlot(x.StartsAtUtc, x.EndsAtUtc))
+            .ToListAsync(cancellationToken);
+    }
+
     private readonly ClinicDbContext _context;
+
+    private IQueryable<Appointment> BlockingAppointments(Guid doctorId) =>
+        _context.Appointments.Where(x => x.DoctorId == doctorId && x.Status != AppointmentStatus.Cancelled);
 
     public AppointmentRepository(ClinicDbContext context)
     {
@@ -21,10 +37,8 @@ public sealed class AppointmentRepository : IAppointmentRepository
         DateTimeOffset endsAtUtc,
         CancellationToken cancellationToken = default)
     {
-        return _context.Appointments.AnyAsync(
+        return BlockingAppointments(doctorId).AnyAsync(
             appointment =>
-                appointment.DoctorId == doctorId &&
-                appointment.Status != AppointmentStatus.Cancelled &&
                 appointment.StartsAtUtc < endsAtUtc &&
                 appointment.EndsAtUtc > startsAtUtc,
             cancellationToken);
@@ -60,11 +74,9 @@ public sealed class AppointmentRepository : IAppointmentRepository
     DateTimeOffset endsAtUtc,
     CancellationToken cancellationToken = default)
     {
-        return _context.Appointments.AnyAsync(
+        return BlockingAppointments(doctorId).AnyAsync(
             appointment =>
-                appointment.DoctorId == doctorId &&
                 appointment.Id != excludedAppointmentId &&
-                appointment.Status != AppointmentStatus.Cancelled &&
                 appointment.StartsAtUtc < endsAtUtc &&
                 appointment.EndsAtUtc > startsAtUtc,
             cancellationToken);

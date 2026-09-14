@@ -38,7 +38,7 @@ public sealed class StaffBookingAccessTests :
             Guid.NewGuid(),
             Guid.NewGuid(),
             start,
-            start.AddMinutes(30));
+            Clinic.Domain.Enums.AppointmentType.Consultation);
 
         using var response = await client.PostAsJsonAsync(
             "/api/staff/appointments",
@@ -111,7 +111,7 @@ public sealed class StaffBookingAccessTests :
             Guid.NewGuid(),
             Guid.NewGuid(),
             start,
-            start.AddMinutes(30));
+            Clinic.Domain.Enums.AppointmentType.Consultation);
     }
     [Theory]
     [InlineData("Patient", true)]

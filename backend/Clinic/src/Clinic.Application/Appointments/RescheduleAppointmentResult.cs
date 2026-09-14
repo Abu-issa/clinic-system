@@ -17,7 +17,12 @@ public enum ReschedulingError
     OutsideWorkingHours = 12,
     TimeSlotUnavailable = 13,
         InvalidRowVersion = 14,
-    AppointmentChanged = 15
+    AppointmentChanged = 15,
+    DurationChanged = 16,
+    OffGrid = 17,
+    InsufficientNotice = 18,
+    OutsideBookingWindow = 19,
+    InvalidLocalTime = 20
 }
 
 public sealed class RescheduleAppointmentResult

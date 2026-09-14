@@ -36,7 +36,7 @@ public class AppointmentBookingServiceTests
         Assert.Equal<Guid?>(appointment.Id, result.AppointmentId);
         Assert.Equal(request.PatientId, appointment.PatientId);
         Assert.Equal(request.StartsAt, appointment.StartsAtUtc);
-        Assert.Equal(request.EndsAt, appointment.EndsAtUtc);
+        Assert.Equal(request.StartsAt.AddMinutes(30), appointment.EndsAtUtc);
         Assert.Equal(AppointmentStatus.Pending, appointment.Status);
 
         Assert.Equal(1, store.SaveCalls);
@@ -44,7 +44,11 @@ public class AppointmentBookingServiceTests
 
     [Theory]
     [InlineData(BookingError.InvalidPatientId)]
+    [InlineData(BookingError.InvalidAppointmentType)]
     [InlineData(BookingError.InvalidTimeRange)]
+    [InlineData(BookingError.OffGrid)]
+    [InlineData(BookingError.InsufficientNotice)]
+    [InlineData(BookingError.OutsideBookingWindow)]
     [InlineData(BookingError.StartMustBeInFuture)]
     [InlineData(BookingError.PatientNotFound)]
     [InlineData(BookingError.TimeSlotUnavailable)]
@@ -66,14 +70,25 @@ public class AppointmentBookingServiceTests
                 break;
 
             case BookingError.InvalidTimeRange:
-                request = request with { EndsAt = request.StartsAt };
+                request = request with { StartsAt = DateTimeOffset.MaxValue };
+                break;
+            case BookingError.InvalidAppointmentType:
+                request = request with { AppointmentType = (AppointmentType)99 };
+                break;
+            case BookingError.OffGrid:
+                request = request with { StartsAt = Now.AddHours(1).AddMinutes(1) };
+                break;
+            case BookingError.InsufficientNotice:
+                request = request with { StartsAt = Now.AddMinutes(45) };
+                break;
+            case BookingError.OutsideBookingWindow:
+                request = request with { StartsAt = Now.AddDays(31) };
                 break;
 
             case BookingError.StartMustBeInFuture:
                 request = request with
                 {
-                    StartsAt = Now,
-                    EndsAt = Now.AddMinutes(30)
+                    StartsAt = Now
                 };
                 break;
 
@@ -130,7 +145,7 @@ public class AppointmentBookingServiceTests
             store,
             store,
             store,
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now), new BookingPolicy(new BookingPolicySettings(), TimeZoneInfo.FindSystemTimeZoneById("Asia/Amman")));
     }
 
 
@@ -141,7 +156,7 @@ public class AppointmentBookingServiceTests
             Guid.NewGuid(),
             doctorId,
             Now.AddHours(1),
-            Now.AddHours(1).AddMinutes(30));
+            Clinic.Domain.Enums.AppointmentType.Consultation);
     }
 
     private sealed class FixedTimeProvider : TimeProvider
@@ -186,6 +201,19 @@ public class AppointmentBookingServiceTests
       IBookingTransaction,
       IWorkingScheduleRepository
     {
+        public Task<WorkingDay> GetDayAsync(Guid doctorId, DateOnly localDate,
+            CancellationToken cancellationToken = default)
+        {
+            Assert.True(IsInsideTransaction);
+            return Task.FromResult(new WorkingDay(false, IsWithinWorkingHours
+                ? new[] { new WorkingPeriod(new TimeOnly(9, 0), new TimeOnly(17, 0)) }
+                : Array.Empty<WorkingPeriod>()));
+        }
+
+        public Task<IReadOnlyList<AppointmentSlot>> GetBlockingIntervalsAsync(Guid doctorId,
+            DateTimeOffset fromUtc, DateTimeOffset toUtc, Guid? excludedAppointmentId = null,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public Guid? CheckedDoctorId { get; private set; }
         public bool PatientExists { get; set; } = true;
 

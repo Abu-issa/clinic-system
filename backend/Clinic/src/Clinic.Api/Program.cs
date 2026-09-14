@@ -5,10 +5,24 @@ using Clinic.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Clinic.Api.ErrorHandling;
 using Clinic.Application.Schedules;
+using Clinic.Domain.Enums;
+using Microsoft.Extensions.Options;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter<AppointmentType>()));
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<AppointmentType>()));
+builder.Services.AddOptions<BookingPolicySettings>()
+    .BindConfiguration("BookingPolicy")
+    .Validate(settings => settings.IsValid(), "Invalid booking policy durations, interval, notice, or horizon.")
+    .ValidateOnStart();
+builder.Services.AddSingleton(provider => new BookingPolicy(
+    provider.GetRequiredService<IOptions<BookingPolicySettings>>().Value,
+    provider.GetRequiredService<TimeZoneInfo>()));
+builder.Services.AddScoped<AppointmentAvailabilityService>();
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails(options =>
 {
@@ -109,6 +123,17 @@ builder.Services.AddAuthorization(options =>
             context.User.FindAll("schedule_doctor_id").Any(claim =>
                 Guid.TryParse(claim.Value, out var allowedDoctorId) &&
                 allowedDoctorId == doctorId));
+    });
+    options.AddPolicy("ViewDoctorAvailability", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Doctor", "Receptionist");
+        policy.RequireClaim("amr", "mfa");
+        policy.RequireClaim("permission", "appointments.availability");
+        policy.RequireAssertion(context =>
+            context.Resource is Guid doctorId && doctorId != Guid.Empty &&
+            context.User.FindAll("appointment_doctor_id").Any(claim =>
+                Guid.TryParse(claim.Value, out var allowedDoctorId) && allowedDoctorId == doctorId));
     });
     options.AddPolicy("RescheduleDoctorAppointment", policy =>
     {

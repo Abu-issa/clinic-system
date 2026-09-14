@@ -23,6 +23,7 @@ public sealed class StaffAppointmentsController : ControllerBase
     }
 
     [HttpPost]
+    [EndpointDescription("Book using PatientId, DoctorId, StartsAt and AppointmentType (Consultation or FollowUp). End time is derived from validated booking policy. Requires staff MFA and CSRF. Availability is advisory; all rules are rechecked under the doctor lock.")]
     public async Task<IResult> Book(
         [FromBody] BookAppointmentRequest request,
         CancellationToken cancellationToken)
