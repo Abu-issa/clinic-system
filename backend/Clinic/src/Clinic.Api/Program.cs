@@ -1,3 +1,7 @@
+using Clinic.Infrastructure.Authentication;
+using Clinic.Api.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Threading.RateLimiting;
 using Clinic.Application.Abstractions;
 using Clinic.Application.Appointments;
 using Clinic.Infrastructure.Persistence;
@@ -63,38 +67,29 @@ builder.Services.AddScoped<AppointmentBookingService>();
 
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddScoped<IBookingTransaction, SqlBookingTransaction>();
-builder.Services
-    .AddAuthentication("ClinicStaff")
-    .AddCookie("ClinicStaff", options =>
+builder.Services.AddStaffIdentity();
+builder.Services.AddScoped<StaffCookieEvents>();
+builder.Services.AddAuthentication("ClinicStaff")
+    .AddCookie("ClinicStaff", options => ConfigureCookie(options, "__Host-Clinic.Staff", 30))
+    .AddCookie("ClinicStaffIntermediate", options => ConfigureCookie(options, "__Host-Clinic.StaffIntermediate", 5));
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = 429;
+    options.OnRejected = async (context, cancellationToken) =>
     {
-        options.Cookie.Name = "__Host-Clinic.Staff";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        options.Cookie.SameSite = SameSiteMode.Strict;
-        options.Cookie.Path = "/";
-
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
-        options.SlidingExpiration = false;
-
-        options.Events.OnRedirectToLogin = context =>
-        {
-            context.Response.StatusCode =
-                StatusCodes.Status401Unauthorized;
-
-            return Task.CompletedTask;
-        };
-
-        options.Events.OnRedirectToAccessDenied = context =>
-        {
-            context.Response.StatusCode =
-                StatusCodes.Status403Forbidden;
-
-            return Task.CompletedTask;
-        };
-    });
-
+        context.HttpContext.Response.Headers.CacheControl = "no-store";
+        await Results.Problem(statusCode: 429, title: "Too many authentication requests.",
+            extensions: new Dictionary<string, object?> { ["code"] = "rate_limited", ["traceId"] = context.HttpContext.TraceIdentifier })
+            .ExecuteAsync(context.HttpContext);
+    };
+    // A fixed number of hashed IP buckets bounds limiter memory even with hostile source addresses.
+    options.AddPolicy("staff-auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        (context.Connection.RemoteIpAddress?.ToString().GetHashCode() ?? 0) & 255,
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+});
 builder.Services.AddAuthorization(options =>
 {
+    options.AddPolicy("StaffSession", policy => policy.RequireAuthenticatedUser().RequireRole("Doctor", "Receptionist", "DoctorAssistant").RequireClaim("amr", "mfa"));
     options.AddPolicy("StaffBooking", policy =>
     {
         policy.RequireAuthenticatedUser();
@@ -194,11 +189,35 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api/staff/auth"))
+        context.Response.Headers.CacheControl = "no-store";
+    await next();
+});
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapControllers();
+if (args.Length > 0 && args[0] == "staff")
+{
+    await StaffLocalCommand.RunAsync(args, app.Services);
+    return;
+}
 app.Run();
+
+static void ConfigureCookie(CookieAuthenticationOptions options, string name, int minutes)
+{
+    options.Cookie.Name = name;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.Path = "/";
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(minutes);
+    options.SlidingExpiration = false;
+    options.EventsType = typeof(StaffCookieEvents);
+}
 
 public partial class Program
 {

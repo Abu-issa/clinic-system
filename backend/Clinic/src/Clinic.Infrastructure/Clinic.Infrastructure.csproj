@@ -7,6 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
     <ProjectReference Include="..\Clinic.Application\Clinic.Application.csproj" />
     <ProjectReference Include="..\Clinic.Domain\Clinic.Domain.csproj" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />

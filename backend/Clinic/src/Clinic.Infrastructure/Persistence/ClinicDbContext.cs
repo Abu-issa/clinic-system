@@ -5,7 +5,7 @@ using Clinic.Application.Exceptions;
 
 namespace Clinic.Infrastructure.Persistence;
 
-public sealed class ClinicDbContext : DbContext, IUnitOfWork
+public sealed class ClinicDbContext : Microsoft.AspNetCore.Identity.EntityFrameworkCore.IdentityDbContext<Clinic.Infrastructure.Authentication.StaffUser>, IUnitOfWork
 {
     public ClinicDbContext(
         DbContextOptions<ClinicDbContext> options)

@@ -280,7 +280,7 @@ public sealed class AppointmentCancellationHttpTests :
             new Claim("appointment_doctor_id", doctorId.ToString())
         };
 
-        var identity = new ClaimsIdentity(claims, "ClinicStaff");
+        var identity = new ClaimsIdentity(PersistedTicketStaff.Add(factory, claims), "ClinicStaff");
 
         var ticket = new AuthenticationTicket(
             new ClaimsPrincipal(identity),

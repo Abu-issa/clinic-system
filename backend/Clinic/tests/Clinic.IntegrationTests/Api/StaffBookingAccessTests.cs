@@ -74,7 +74,7 @@ public sealed class StaffBookingAccessTests :
             claims.Add(new Claim("amr", "mfa"));
         }
 
-        var identity = new ClaimsIdentity(claims, "ClinicStaff");
+        var identity = new ClaimsIdentity(PersistedTicketStaff.Add(factory, claims), "ClinicStaff");
         var principal = new ClaimsPrincipal(identity);
 
         var properties = new AuthenticationProperties

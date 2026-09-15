@@ -129,7 +129,7 @@ public sealed class DoctorDayClosureAccessTests :
         }
 
         var identity = new ClaimsIdentity(
-            claims,
+            PersistedTicketStaff.Add(_factory, claims),
             "ClinicStaff");
 
         var ticket = new AuthenticationTicket(

@@ -6,8 +6,9 @@ Accept: application/json
 ###
 
 # Development examples only. Replace IDs/date/start/version and supply an existing
-# staff cookie and CSRF token. This project does not implement production login
-# or CSRF-token issuance. Use the API's HTTPS launch URL for secure cookies.
+# staff cookie and CSRF token using the real authentication flow below.
+# See docs/staff-authentication.md. Use HTTPS and an ephemeral cookie-aware client.
+# Never save actual passwords, shared keys, recovery codes or cookie/token values here.
 @StaffHost = https://localhost:7152
 @DoctorId = 00000000-0000-0000-0000-000000000001
 @PatientId = 00000000-0000-0000-0000-000000000002
@@ -19,6 +20,57 @@ Accept: application/json
 @CsrfCookie = REPLACE_WITH_EXISTING_ANTIFORGERY_COOKIE
 @CsrfToken = REPLACE_WITH_EXISTING_CSRF_TOKEN
 @RowVersion = REPLACE_WITH_CURRENT_BASE64_VERSION
+
+### Obtain a CSRF token before anonymous login. Keep the returned cookie.
+GET {{StaffHost}}/api/staff/auth/csrf
+
+### Password step. Supply StaffUserName/StaffPassword only in an ephemeral client;
+# these sensitive variables are deliberately not defined in this file.
+# Use the requestToken from /csrf. Keep the returned intermediate cookie and csrfToken.
+POST {{StaffHost}}/api/staff/auth/login
+Content-Type: application/json
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "userName": "{{StaffUserName}}",
+  "password": "{{StaffPassword}}"
+}
+
+### Only when login returns next=enrollment. Client must retain intermediate cookie.
+POST {{StaffHost}}/api/staff/auth/enrollment/setup
+X-CSRF-TOKEN: {{CsrfToken}}
+
+### Enter secret in authenticator, then verify. Save returned recovery codes offline once.
+POST {{StaffHost}}/api/staff/auth/enrollment/verify
+Content-Type: application/json
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{ "code": "{{AuthenticatorCode}}" }
+
+### Subsequent password login returns next=totp. No remember-device option exists.
+POST {{StaffHost}}/api/staff/auth/totp
+Content-Type: application/json
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{ "code": "{{AuthenticatorCode}}" }
+
+### Alternative second factor after password verification; consumes one recovery code.
+POST {{StaffHost}}/api/staff/auth/recovery
+Content-Type: application/json
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{ "code": "{{RecoveryCode}}" }
+
+### Minimal full session details. Refresh /csrf whenever the browser identity changes.
+GET {{StaffHost}}/api/staff/auth/session
+
+### Clears cookies and revokes all sessions for this account.
+POST {{StaffHost}}/api/staff/auth/logout
+X-CSRF-TOKEN: {{CsrfToken}}
+
+### Explicit account-wide revocation, requiring a full MFA session.
+POST {{StaffHost}}/api/staff/auth/revoke-sessions
+X-CSRF-TOKEN: {{CsrfToken}}
 
 ### Advisory availability; requires appointments.availability and doctor scope.
 GET {{StaffHost}}/api/staff/doctors/{{DoctorId}}/availability?date={{LocalDate}}&appointmentType=Consultation

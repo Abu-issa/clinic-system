@@ -171,7 +171,7 @@ public sealed class AppointmentReschedulingHttpTests(SqlDatabaseFixture database
         if (actor is not null) claims.Add(new(ClaimTypes.NameIdentifier, actor));
         if (mfa) claims.Add(new("amr", "mfa"));
         var ticket = new AuthenticationTicket(
-            new ClaimsPrincipal(new ClaimsIdentity(claims, "ClinicStaff")),
+            new ClaimsPrincipal(new ClaimsIdentity(PersistedTicketStaff.Add(factory, claims), "ClinicStaff")),
             new AuthenticationProperties
             {
                 IssuedUtc = factory.Services.GetRequiredService<TimeProvider>().GetUtcNow(),
