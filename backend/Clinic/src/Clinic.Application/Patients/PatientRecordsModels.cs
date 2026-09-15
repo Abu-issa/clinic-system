@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Clinic.Domain.Enums;
 
 namespace Clinic.Application.Patients;
@@ -74,54 +75,86 @@ public sealed record PatientAdminResult(
 }
 
 // Clinical entry inputs. Id is set when replacing an existing active entry;
-// omitted ids create new entries and missing existing entries are superseded.
+// omitted ids create new entries. Every active entry must be retained by ID or explicitly superseded.
 public sealed record AllergyInput(
     Guid? Id,
+    [property: JsonRequired]
     string Substance,
+    [property: JsonRequired]
     string? Reaction,
+    [property: JsonRequired]
     AllergySeverity? Severity,
+    [property: JsonRequired]
     MedicalRecordSource Source,
+    [property: JsonRequired]
     ClinicalReviewStatus ReviewStatus);
 
 public sealed record ChronicConditionInput(
     Guid? Id,
+    [property: JsonRequired]
     string ConditionName,
+    [property: JsonRequired]
     string? Notes,
+    [property: JsonRequired]
     MedicalRecordSource Source,
+    [property: JsonRequired]
     ClinicalReviewStatus ReviewStatus);
 
 public sealed record MedicationInput(
     Guid? Id,
+    [property: JsonRequired]
     string MedicationName,
+    [property: JsonRequired]
     MedicationStatus Status,
+    [property: JsonRequired]
     MedicalRecordSource Source,
+    [property: JsonRequired]
     ClinicalReviewStatus ReviewStatus);
 
 public sealed record SurgeryInput(
     Guid? Id,
+    [property: JsonRequired]
     string ProcedureName,
+    [property: JsonRequired]
     DateOnly? PerformedOn,
+    [property: JsonRequired]
     MedicalRecordSource Source,
+    [property: JsonRequired]
     ClinicalReviewStatus ReviewStatus);
 
 public sealed record FamilyHistoryInput(
     Guid? Id,
+    [property: JsonRequired]
     string Relation,
+    [property: JsonRequired]
     string Condition,
+    [property: JsonRequired]
     MedicalRecordSource Source,
+    [property: JsonRequired]
     ClinicalReviewStatus ReviewStatus);
 
 public sealed record SaveMedicalProfileRequest(
+    [property: JsonRequired]
     BloodType? BloodType,
+    [property: JsonRequired]
     AllergyStatus AllergyStatus,
+    [property: JsonRequired]
     SmokingStatus? SmokingStatus,
+    [property: JsonRequired]
     DiabetesType? DiabetesType,
+    [property: JsonRequired]
     IReadOnlyList<AllergyInput> Allergies,
+    [property: JsonRequired]
     IReadOnlyList<ChronicConditionInput> ChronicConditions,
+    [property: JsonRequired]
     IReadOnlyList<MedicationInput> Medications,
+    [property: JsonRequired]
     IReadOnlyList<SurgeryInput> Surgeries,
+    [property: JsonRequired]
     IReadOnlyList<FamilyHistoryInput> FamilyHistory,
-    byte[]? ExpectedRowVersion);
+    [property: JsonRequired]
+    byte[]? ExpectedRowVersion,
+    IReadOnlyList<Guid>? SupersededEntryIds = null);
 
 // Response projections deliberately exclude staff identifiers: attribution is
 // persisted, but internal account IDs are not exposed through the API.

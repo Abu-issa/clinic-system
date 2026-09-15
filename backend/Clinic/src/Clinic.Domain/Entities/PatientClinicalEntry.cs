@@ -28,7 +28,7 @@ public abstract class PatientClinicalEntry
 
     public string? SupersededByStaffId { get; private set; }
 
-    private PatientClinicalEntry()
+    protected PatientClinicalEntry()
     {
     }
 
@@ -56,6 +56,11 @@ public abstract class PatientClinicalEntry
         ReviewStatus = source == MedicalRecordSource.Patient
             ? ClinicalReviewStatus.PendingReview
             : ClinicalReviewStatus.Verified;
+        if (ReviewStatus == ClinicalReviewStatus.Verified)
+        {
+            VerifiedAtUtc = recordedAtUtc.ToUniversalTime();
+            VerifiedByStaffId = Normalize(recordedByStaffId);
+        }
         RecordedByStaffId = Normalize(recordedByStaffId);
         RecordedAtUtc = recordedAtUtc.ToUniversalTime();
         Id = Guid.NewGuid();

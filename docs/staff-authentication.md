@@ -173,3 +173,17 @@ factory now owns an isolated database for those synthetic staff records.
 The migration-upgrade test preserves an existing 47-minute unclassified appointment, its times,
 row version, patient and doctor while adding Identity. Existing appointment tests retain their
 policy, concurrency, CSRF and response assertions. See the current progress checkpoint for final counts.
+
+## Patient-record permissions
+
+The patient foundation adds patients.admin.read, patients.admin.write, patients.clinical.read and
+patients.clinical.write to the approved set-grants allowlist. Initial provisioning still grants only
+the original four appointment/schedule permissions. Optional --patient-scopes accepts comma-separated
+existing Patient IDs and stores patient_record_id claims. set-grants replaces the full scope list;
+omission removes patient scopes. It rotates stamps and revokes sessions as before.
+See [patient-medical-records.md](patient-medical-records.md) for the role matrix and pilot limits.
+
+Patient-record sessions additionally revalidate their patient scope/permission claims and roles
+against persisted records on every authenticated request. Removing a grant invalidates an old
+cookie even without stamp rotation; additions require a fresh login. Continue using set-grants
+for supported administration and stamp-based revocation.

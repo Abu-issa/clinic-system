@@ -26,6 +26,7 @@ public sealed class ClinicDbContext : Microsoft.AspNetCore.Identity.EntityFramew
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        PatientRecordsMapping.Configure(modelBuilder);
 
         modelBuilder.Entity<Patient>(patient =>
         {

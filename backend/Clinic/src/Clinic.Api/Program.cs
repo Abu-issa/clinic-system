@@ -1,3 +1,4 @@
+using Clinic.Application.Patients;
 using Clinic.Infrastructure.Authentication;
 using Clinic.Api.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -51,6 +52,11 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<ClinicDbContext>(options =>
 {
     options.UseSqlServer(connectionString);
+    // Provider exceptions can include a duplicate MRN even when sensitive-data logging is off.
+    // Expected conflicts are mapped by services; unexpected failures use the sanitized API handler.
+    options.ConfigureWarnings(warnings => warnings.Ignore(
+        Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.SaveChangesFailed,
+        Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.CommandError));
 });
 
 builder.Services.AddScoped<IPatientRepository, PatientRepository>();
@@ -68,6 +74,8 @@ builder.Services.AddScoped<AppointmentBookingService>();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddScoped<IBookingTransaction, SqlBookingTransaction>();
 builder.Services.AddStaffIdentity();
+builder.Services.AddScoped<IPatientRecordsStore, PatientRecordsStore>();
+builder.Services.AddScoped<PatientRecordsService>();
 builder.Services.AddScoped<StaffCookieEvents>();
 builder.Services.AddAuthentication("ClinicStaff")
     .AddCookie("ClinicStaff", options => ConfigureCookie(options, "__Host-Clinic.Staff", 30))
@@ -89,6 +97,19 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddAuthorization(options =>
 {
+    void PatientPolicy(string name, string permission, string[] roles, bool scoped = true)
+    {
+        options.AddPolicy(name, policy => {
+            policy.RequireAuthenticatedUser().RequireClaim("amr", "mfa").RequireRole(roles).RequireClaim("permission", permission);
+            if (scoped) policy.RequireAssertion(context => context.Resource is Guid id && id != Guid.Empty &&
+                context.User.FindAll("patient_record_id").Any(c => Guid.TryParse(c.Value, out var allowed) && allowed == id));
+        });
+    }
+    PatientPolicy("PatientCreate", "patients.admin.write", ["Doctor", "Receptionist"], false);
+    PatientPolicy("PatientAdminRead", "patients.admin.read", ["Doctor", "Receptionist"]);
+    PatientPolicy("PatientAdminWrite", "patients.admin.write", ["Doctor", "Receptionist"]);
+    PatientPolicy("PatientClinicalRead", "patients.clinical.read", ["Doctor", "DoctorAssistant"]);
+    PatientPolicy("PatientClinicalWrite", "patients.clinical.write", ["Doctor"]);
     options.AddPolicy("StaffSession", policy => policy.RequireAuthenticatedUser().RequireRole("Doctor", "Receptionist", "DoctorAssistant").RequireClaim("amr", "mfa"));
     options.AddPolicy("StaffBooking", policy =>
     {
@@ -191,7 +212,7 @@ app.UseHttpsRedirection();
 
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/api/staff/auth"))
+    if (context.Request.Path.StartsWithSegments("/api/staff/auth") || context.Request.Path.StartsWithSegments("/api/staff/patients"))
         context.Response.Headers.CacheControl = "no-store";
     await next();
 });

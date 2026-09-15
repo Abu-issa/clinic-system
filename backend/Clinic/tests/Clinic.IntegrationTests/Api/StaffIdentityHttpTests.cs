@@ -18,7 +18,7 @@ using Microsoft.Extensions.Logging;
 namespace Clinic.IntegrationTests.Api;
 
 // Every browser credential in this class is issued by the actual HTTP/Identity flow.
-public sealed class StaffIdentityHttpTests : IAsyncLifetime
+public sealed partial class StaffIdentityHttpTests : IAsyncLifetime
 {
     private const string Password = "Synthetic-Password-93!";
     private const string Name = "synthetic-doctor";
@@ -342,7 +342,8 @@ public sealed class StaffIdentityHttpTests : IAsyncLifetime
         await migrator.MigrateAsync("20260914160508_AddAppointmentType");
         var patient = new Patient("Synthetic migration patient", "0790000000");
         var appointment = new Appointment(patient.Id, _doctor, DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow.AddDays(1).AddMinutes(47));
-        db.AddRange(patient, appointment);
+        await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO Patients (Id, FullName, PhoneNumber, CreatedAtUtc) VALUES ({patient.Id}, {patient.FullName}, {patient.PhoneNumber}, {patient.CreatedAtUtc})");
+        db.Add(appointment);
         await db.SaveChangesAsync();
         var version = appointment.RowVersion.ToArray();
         await migrator.MigrateAsync();
@@ -464,7 +465,7 @@ public sealed class StaffIdentityHttpTests : IAsyncLifetime
         {
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
             public bool IsEnabled(LogLevel logLevel) => true;
-            public void Log<TState>(LogLevel level, EventId id, TState state, Exception? exception, Func<TState, Exception?, string> formatter) => messages.Add(formatter(state, exception));
+            public void Log<TState>(LogLevel level, EventId id, TState state, Exception? exception, Func<TState, Exception?, string> formatter) => messages.Add(formatter(state, exception) + (exception is null ? "" : Environment.NewLine + exception));
         }
     }
 }

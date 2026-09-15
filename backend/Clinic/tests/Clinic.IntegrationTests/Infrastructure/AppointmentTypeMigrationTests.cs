@@ -18,8 +18,10 @@ public sealed class AppointmentTypeMigrationTests : IClassFixture<SqlDatabaseFix
         await migrator.MigrateAsync("20260912114838_AddAppointmentRowVersion");
         var doctor = new Doctor("Legacy synthetic doctor");
         var patient = new Patient("Legacy synthetic patient", "0790000001");
-        context.AddRange(doctor, patient);
+        context.Add(doctor);
         await context.SaveChangesAsync();
+        // Insert only columns present at this historical schema version.
+        await context.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO Patients (Id, FullName, PhoneNumber, CreatedAtUtc) VALUES ({patient.Id}, {patient.FullName}, {patient.PhoneNumber}, {patient.CreatedAtUtc})");
         var id = Guid.NewGuid();
         var start = new DateTimeOffset(2025, 1, 1, 8, 0, 0, TimeSpan.Zero);
         var end = start.AddMinutes(47);

@@ -17,7 +17,7 @@ public sealed class StaffAdministration(ClinicDbContext db, UserManager<StaffUse
         var existing = await users.FindByNameAsync(userName);
         if (existing is not null)
         {
-            var expected = Grants(StaffAuthentication.Permissions, scopes).Select(c => c.Type + "=" + c.Value).Order().ToArray();
+            var expected = Grants(StaffAuthentication.InitialPermissions, scopes).Select(c => c.Type + "=" + c.Value).Order().ToArray();
             var actual = (await users.GetClaimsAsync(existing)).Select(c => c.Type + "=" + c.Value).Order().ToArray();
             if (existing.AssociatedDoctorId != doctorId || !(await users.GetRolesAsync(existing)).SequenceEqual(["Doctor"]) ||
                 !expected.SequenceEqual(actual)) throw new InvalidOperationException("Existing account differs; use the explicit administrative procedure.");
@@ -29,13 +29,13 @@ public sealed class StaffAdministration(ClinicDbContext db, UserManager<StaffUse
         var user = new StaffUser { UserName = userName, AssociatedDoctorId = doctorId, LockoutEnabled = true };
         StaffAuthentication.Require(await users.CreateAsync(user, password));
         StaffAuthentication.Require(await users.AddToRoleAsync(user, "Doctor"));
-        StaffAuthentication.Require(await users.AddClaimsAsync(user, Grants(StaffAuthentication.Permissions, scopes)));
+        StaffAuthentication.Require(await users.AddClaimsAsync(user, Grants(StaffAuthentication.InitialPermissions, scopes)));
         await tx.CommitAsync();
         return user.Id;
     }
 
     public async Task ChangeAsync(string userId, string operation, string? password = null,
-        string[]? approvedRoles = null, string[]? permissions = null, Guid[]? scopes = null)
+        string[]? approvedRoles = null, string[]? permissions = null, Guid[]? scopes = null, Guid[]? patientScopes = null)
     {
         await using var tx = await db.Database.BeginTransactionAsync();
         await StaffAuthentication.LockAsync(db, userId);
@@ -57,12 +57,16 @@ public sealed class StaffAdministration(ClinicDbContext db, UserManager<StaffUse
                 if (approvedRoles is null || approvedRoles.Length == 0 || approvedRoles.Except(StaffAuthentication.Roles).Any() ||
                     permissions is null || permissions.Except(StaffAuthentication.Permissions).Any()) throw new ArgumentException("Unsupported grants.");
                 await ValidateScopesAsync(scopes!);
+                patientScopes ??= [];
+                if (patientScopes.Contains(Guid.Empty) || patientScopes.Distinct().Count() != patientScopes.Length ||
+                    await db.Patients.CountAsync(x => patientScopes.Contains(x.Id)) != patientScopes.Length)
+                    throw new ArgumentException("Explicit patient scopes must identify existing patients.");
                 foreach (var role in approvedRoles)
                     if (!await roles.RoleExistsAsync(role)) StaffAuthentication.Require(await roles.CreateAsync(new IdentityRole(role)));
                 StaffAuthentication.Require(await users.RemoveFromRolesAsync(user, await users.GetRolesAsync(user)));
                 StaffAuthentication.Require(await users.AddToRolesAsync(user, approvedRoles));
                 StaffAuthentication.Require(await users.RemoveClaimsAsync(user, await users.GetClaimsAsync(user)));
-                StaffAuthentication.Require(await users.AddClaimsAsync(user, Grants(permissions, scopes!)));
+                StaffAuthentication.Require(await users.AddClaimsAsync(user, Grants(permissions, scopes!).Concat(patientScopes.Select(id => new Claim("patient_record_id", id.ToString())))));
                 break;
             default: throw new ArgumentException("Unsupported administrative operation.");
         }

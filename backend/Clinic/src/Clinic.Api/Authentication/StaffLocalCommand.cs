@@ -30,7 +30,8 @@ public static class StaffLocalCommand
             await admin.ChangeAsync(id, operation, operation == "reset-password" ? ReadPassword() : null,
                 operation == "set-grants" ? Required("roles").Split(',') : null,
                 operation == "set-grants" ? Required("permissions").Split(',', StringSplitOptions.RemoveEmptyEntries) : null,
-                operation == "set-grants" ? Required("scopes").Split(',').Select(Guid.Parse).ToArray() : null);
+                operation == "set-grants" ? Required("scopes").Split(',').Select(Guid.Parse).ToArray() : null,
+                operation == "set-grants" && args.Contains("--patient-scopes") ? Required("patient-scopes").Split(',').Select(Guid.Parse).ToArray() : null);
             Console.WriteLine("Staff administrative change completed; affected sessions revoked.");
         }
     }

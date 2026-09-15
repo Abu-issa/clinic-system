@@ -27,15 +27,20 @@ public sealed class PatientMedicalProfile
 
     public byte[] RowVersion { get; private set; } = Array.Empty<byte>();
 
-    public ICollection<PatientAllergy> Allergies { get; } = new List<PatientAllergy>();
+    private readonly List<PatientAllergy> _allergies = new();
+    public IReadOnlyCollection<PatientAllergy> Allergies => _allergies.AsReadOnly();
 
-    public ICollection<PatientChronicCondition> ChronicConditions { get; } = new List<PatientChronicCondition>();
+    private readonly List<PatientChronicCondition> _chronicConditions = new();
+    public IReadOnlyCollection<PatientChronicCondition> ChronicConditions => _chronicConditions.AsReadOnly();
 
-    public ICollection<PatientMedication> Medications { get; } = new List<PatientMedication>();
+    private readonly List<PatientMedication> _medications = new();
+    public IReadOnlyCollection<PatientMedication> Medications => _medications.AsReadOnly();
 
-    public ICollection<PatientSurgery> Surgeries { get; } = new List<PatientSurgery>();
+    private readonly List<PatientSurgery> _surgeries = new();
+    public IReadOnlyCollection<PatientSurgery> Surgeries => _surgeries.AsReadOnly();
 
-    public ICollection<PatientFamilyHistoryEntry> FamilyHistory { get; } = new List<PatientFamilyHistoryEntry>();
+    private readonly List<PatientFamilyHistoryEntry> _familyHistory = new();
+    public IReadOnlyCollection<PatientFamilyHistoryEntry> FamilyHistory => _familyHistory.AsReadOnly();
 
     private PatientMedicalProfile()
     {
@@ -75,6 +80,9 @@ public sealed class PatientMedicalProfile
             throw new ArgumentOutOfRangeException(nameof(allergyStatus));
         }
 
+        if (bloodType.HasValue && !Enum.IsDefined(bloodType.Value) ||
+            smokingStatus.HasValue && !Enum.IsDefined(smokingStatus.Value) ||
+            diabetesType.HasValue && !Enum.IsDefined(diabetesType.Value)) throw new ArgumentException("Invalid profile enum.");
         ArgumentException.ThrowIfNullOrWhiteSpace(staffId);
 
         if (allergyStatus == AllergyStatus.NoKnownAllergies &&
@@ -101,7 +109,8 @@ public sealed class PatientMedicalProfile
         DateTimeOffset now)
     {
         var entry = new PatientAllergy(Id, substance, reaction, severity, source, staffId, now);
-        Allergies.Add(entry);
+        _allergies.Add(entry);
+        AllergyStatus = AllergyStatus.HasKnownAllergies;
         Touch(staffId, now);
         return entry;
     }
@@ -114,7 +123,7 @@ public sealed class PatientMedicalProfile
         DateTimeOffset now)
     {
         var entry = new PatientChronicCondition(Id, conditionName, notes, source, staffId, now);
-        ChronicConditions.Add(entry);
+        _chronicConditions.Add(entry);
         Touch(staffId, now);
         return entry;
     }
@@ -127,7 +136,7 @@ public sealed class PatientMedicalProfile
         DateTimeOffset now)
     {
         var entry = new PatientMedication(Id, medicationName, status, source, staffId, now);
-        Medications.Add(entry);
+        _medications.Add(entry);
         Touch(staffId, now);
         return entry;
     }
@@ -140,7 +149,7 @@ public sealed class PatientMedicalProfile
         DateTimeOffset now)
     {
         var entry = new PatientSurgery(Id, procedureName, performedOn, source, staffId, now);
-        Surgeries.Add(entry);
+        _surgeries.Add(entry);
         Touch(staffId, now);
         return entry;
     }
@@ -153,19 +162,19 @@ public sealed class PatientMedicalProfile
         DateTimeOffset now)
     {
         var entry = new PatientFamilyHistoryEntry(Id, relation, condition, source, staffId, now);
-        FamilyHistory.Add(entry);
+        _familyHistory.Add(entry);
         Touch(staffId, now);
         return entry;
     }
 
-    internal void VerifyEntry(PatientClinicalEntry entry, string staffId, DateTimeOffset now)
+    public void VerifyEntry(PatientClinicalEntry entry, string staffId, DateTimeOffset now)
     {
         EnsureEntryBelongs(entry);
         entry.Verify(staffId, now);
         Touch(staffId, now);
     }
 
-    internal void SupersedeEntry(PatientClinicalEntry entry, string staffId, DateTimeOffset now)
+    public void SupersedeEntry(PatientClinicalEntry entry, string staffId, DateTimeOffset now)
     {
         EnsureEntryBelongs(entry);
         entry.Supersede(staffId, now);

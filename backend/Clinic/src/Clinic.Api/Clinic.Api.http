@@ -109,3 +109,63 @@ X-CSRF-TOKEN: {{CsrfToken}}
   "reason": "Patient requested a different time",
   "expectedRowVersion": "{{RowVersion}}"
 }
+
+### Patient administrative creation. Requires patients.admin.write; synthetic example only.
+POST {{StaffHost}}/api/staff/patients
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "fullName": "Synthetic example",
+  "phoneNumber": "synthetic-shared",
+  "medicalRecordNumber": "SYN-EXAMPLE",
+  "legacyPaperFileNumber": "PAPER-EXAMPLE",
+  "dateOfBirth": null
+}
+
+### Requires patients.admin.read and the explicit patient_record_id scope.
+GET {{StaffHost}}/api/staff/patients/{{PatientId}}
+Cookie: {{StaffCookie}}
+
+### Administrative update: current Patient RowVersion, not profile RowVersion.
+PUT {{StaffHost}}/api/staff/patients/{{PatientId}}
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "fullName": "Synthetic example updated",
+  "phoneNumber": "synthetic-shared",
+  "dateOfBirth": null,
+  "emergencyContactName": null,
+  "emergencyContactPhone": null,
+  "emergencyContactRelation": null,
+  "expectedRowVersion": "{{RowVersion}}"
+}
+
+### Doctor/DoctorAssistant + patients.clinical.read + patient scope.
+GET {{StaffHost}}/api/staff/patients/{{PatientId}}/medical-profile
+Cookie: {{StaffCookie}}
+
+### Doctor + patients.clinical.write + patient scope; FIRST profile save only.
+# Complete snapshot: all lists required. On later saves include every retained entry ID
+# and the current profile RowVersion. To remove entries, list their IDs in supersededEntryIds;
+# omission alone is rejected. Include every basic/value field, using null for an intentional clear.
+PUT {{StaffHost}}/api/staff/patients/{{PatientId}}/medical-profile
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "bloodType": null,
+  "allergyStatus": 0,
+  "smokingStatus": null,
+  "diabetesType": null,
+  "allergies": [],
+  "chronicConditions": [],
+  "medications": [],
+  "surgeries": [],
+  "familyHistory": [],
+  "expectedRowVersion": null
+}

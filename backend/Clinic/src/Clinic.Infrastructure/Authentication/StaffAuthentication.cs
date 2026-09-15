@@ -14,7 +14,8 @@ public sealed class StaffAuthentication(ClinicDbContext db, UserManager<StaffUse
     public const string ChallengeClaim = "staff_challenge";
     public const string EnrollmentClaim = "staff_enrollment";
     public static readonly string[] Roles = ["Doctor", "Receptionist", "DoctorAssistant"];
-    public static readonly string[] Permissions = ["appointments.availability", "appointments.reschedule", "appointments.cancel", "schedule.manage"];
+    public static readonly string[] InitialPermissions = ["appointments.availability", "appointments.reschedule", "appointments.cancel", "schedule.manage"];
+    public static readonly string[] Permissions = [.. InitialPermissions, "patients.admin.read", "patients.admin.write", "patients.clinical.read", "patients.clinical.write"];
     private static readonly StaffUser DummyUser = new();
     private static readonly PasswordHasher<StaffUser> DummyHasher = new();
     private static readonly string DummyHash = DummyHasher.HashPassword(DummyUser, Guid.NewGuid().ToString());
@@ -84,8 +85,23 @@ public sealed class StaffAuthentication(ClinicDbContext db, UserManager<StaffUse
         if (id is null) return false;
         // Always read persisted state, including when this context previously loaded the user.
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id);
-        return user is not null && Matches(user, principal, intermediate) && await AllowedAsync(user) &&
-            !await users.IsLockedOutAsync(user) && (intermediate || user.TwoFactorEnabled);
+        if (user is null || !Matches(user, principal, intermediate) || !await AllowedAsync(user) ||
+            await users.IsLockedOutAsync(user) || !intermediate && !user.TwoFactorEnabled) return false;
+        if (!intermediate)
+        {
+            var recordClaims = principal.Claims.Where(c => c.Type == "patient_record_id" ||
+                c.Type == "permission" && c.Value.StartsWith("patients.", StringComparison.Ordinal)).ToArray();
+            if (recordClaims.Length > 0)
+            {
+                // A stamp check alone does not detect Identity claim removal without stamp rotation.
+                // Recheck current persisted record grants on every request; additions require new login.
+                var persisted = await users.GetClaimsAsync(user);
+                var roles = await users.GetRolesAsync(user);
+                if (recordClaims.Any(c => !persisted.Any(p => p.Type == c.Type && p.Value == c.Value)) ||
+                    principal.FindAll(ClaimTypes.Role).Any(c => !roles.Contains(c.Value))) return false;
+            }
+        }
+        return true;
     }
 
     public async Task<AuthenticatorSetup?> SetupAsync(ClaimsPrincipal intermediate)
@@ -177,7 +193,7 @@ public sealed class StaffAuthentication(ClinicDbContext db, UserManager<StaffUse
         claims.AddRange((await users.GetRolesAsync(user)).Where(Roles.Contains).Select(r => new Claim(ClaimTypes.Role, r)));
         claims.AddRange((await users.GetClaimsAsync(user)).Where(c =>
             c.Type == "permission" && Permissions.Contains(c.Value) ||
-            (c.Type is "appointment_doctor_id" or "schedule_doctor_id") && Guid.TryParse(c.Value, out var id) && id != Guid.Empty));
+            (c.Type is "appointment_doctor_id" or "schedule_doctor_id" or "patient_record_id") && Guid.TryParse(c.Value, out var id) && id != Guid.Empty));
         return new(new ClaimsIdentity(claims, "ClinicStaff"));
     }
 
