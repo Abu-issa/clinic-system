@@ -15,7 +15,7 @@ public sealed class StaffAuthentication(ClinicDbContext db, UserManager<StaffUse
     public const string EnrollmentClaim = "staff_enrollment";
     public static readonly string[] Roles = ["Doctor", "Receptionist", "DoctorAssistant"];
     public static readonly string[] InitialPermissions = ["appointments.availability", "appointments.reschedule", "appointments.cancel", "schedule.manage"];
-    public static readonly string[] Permissions = [.. InitialPermissions, "patients.admin.read", "patients.admin.write", "patients.clinical.read", "patients.clinical.write", "visits.read", "visits.write", "visits.finalize", "visits.amend", "vitals.write"];
+    public static readonly string[] Permissions = [.. InitialPermissions, "patients.admin.read", "patients.admin.write", "patients.clinical.read", "patients.clinical.write", "visits.read", "visits.write", "visits.finalize", "visits.amend", "vitals.write", "medications.read", "medications.manage", "prescriptions.read", "prescriptions.write", "prescriptions.finalize", "prescriptions.release", "prescriptions.cancel"];
     private static readonly StaffUser DummyUser = new();
     private static readonly PasswordHasher<StaffUser> DummyHasher = new();
     private static readonly string DummyHash = DummyHasher.HashPassword(DummyUser, Guid.NewGuid().ToString());
@@ -89,13 +89,15 @@ public sealed class StaffAuthentication(ClinicDbContext db, UserManager<StaffUse
             await users.IsLockedOutAsync(user) || !intermediate && !user.TwoFactorEnabled) return false;
         if (!intermediate)
         {
-            var recordClaims = principal.Claims.Where(c => c.Type == "patient_record_id" ||
-                c.Type == "permission" && (c.Value.StartsWith("patients.", StringComparison.Ordinal) ||
-                    c.Value.StartsWith("visits.", StringComparison.Ordinal) || c.Value.StartsWith("vitals.", StringComparison.Ordinal))).ToArray();
+            // Every full-session permission and scope claim was issued from persisted state, so
+            // revalidation selects them by claim type: grant removal is always detected without
+            // relying on per-feature value prefixes. A stamp check alone does not detect Identity
+            // claim removal without stamp rotation; additions require a new login.
+            var recordClaims = principal.Claims.Where(c =>
+                c.Type is "patient_record_id" or "appointment_doctor_id" or "schedule_doctor_id" ||
+                c.Type == "permission").ToArray();
             if (recordClaims.Length > 0)
             {
-                // A stamp check alone does not detect Identity claim removal without stamp rotation.
-                // Recheck current persisted record grants on every request; additions require new login.
                 var persisted = await users.GetClaimsAsync(user);
                 var roles = await users.GetRolesAsync(user);
                 if (recordClaims.Any(c => !persisted.Any(p => p.Type == c.Type && p.Value == c.Value)) ||

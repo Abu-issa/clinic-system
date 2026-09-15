@@ -124,6 +124,31 @@ builder.Services.AddAuthorization(options =>
     PatientPolicy("VisitFinalize", "visits.finalize", ["Doctor"]);
     PatientPolicy("VisitAmend", "visits.amend", ["Doctor"]);
     PatientPolicy("VitalWrite", "vitals.write", ["Doctor", "DoctorAssistant"]);
+
+    // Prescriptions: Doctor only, exact persisted patient scope, explicit operation permission.
+    void PrescriptionPolicy(string name, string permission)
+    {
+        options.AddPolicy(name, policy => {
+            policy.RequireAuthenticatedUser().RequireClaim("amr", "mfa").RequireRole("Doctor")
+                .RequireClaim("permission", permission);
+            policy.RequireAssertion(context => context.Resource is Guid id && id != Guid.Empty &&
+                context.User.FindAll("patient_record_id").Any(c => Guid.TryParse(c.Value, out var allowed) && allowed == id));
+        });
+    }
+    PrescriptionPolicy("PrescriptionRead", "prescriptions.read");
+    PrescriptionPolicy("PrescriptionWrite", "prescriptions.write");
+    PrescriptionPolicy("PrescriptionFinalize", "prescriptions.finalize");
+    PrescriptionPolicy("PrescriptionRelease", "prescriptions.release");
+    PrescriptionPolicy("PrescriptionCancel", "prescriptions.cancel");
+
+    // Medication catalog is clinic-wide: no patient scope participates. Reading is Doctor or
+    // DoctorAssistant; administration is Doctor only. Scheduling scopes never grant it.
+    options.AddPolicy("MedicationRead", policy => policy
+        .RequireAuthenticatedUser().RequireClaim("amr", "mfa")
+        .RequireRole("Doctor", "DoctorAssistant").RequireClaim("permission", "medications.read"));
+    options.AddPolicy("MedicationManage", policy => policy
+        .RequireAuthenticatedUser().RequireClaim("amr", "mfa")
+        .RequireRole("Doctor").RequireClaim("permission", "medications.manage"));
     options.AddPolicy("StaffSession", policy => policy.RequireAuthenticatedUser().RequireRole("Doctor", "Receptionist", "DoctorAssistant").RequireClaim("amr", "mfa"));
     options.AddPolicy("StaffBooking", policy =>
     {
@@ -226,7 +251,8 @@ app.UseHttpsRedirection();
 
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/api/staff/auth") || context.Request.Path.StartsWithSegments("/api/staff/patients"))
+    if (context.Request.Path.StartsWithSegments("/api/staff/auth") || context.Request.Path.StartsWithSegments("/api/staff/patients")
+        || context.Request.Path.StartsWithSegments("/api/staff/medications"))
         context.Response.Headers.CacheControl = "no-store";
     await next();
 });

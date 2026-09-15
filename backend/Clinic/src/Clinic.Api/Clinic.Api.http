@@ -169,3 +169,209 @@ X-CSRF-TOKEN: {{CsrfToken}}
   "familyHistory": [],
   "expectedRowVersion": null
 }
+
+# ============================================================
+# Medication catalog and prescriptions (Phase 2)
+# All values are placeholders: use real IDs from your database,
+# real cookies/tokens from the login+TOTP flow, and the Base64
+# rowVersion values returned by previous responses.
+# ============================================================
+
+### Doctor/DoctorAssistant + medications.read.
+GET {{StaffHost}}/api/staff/medications?query=amoxicillin&activeOnly=true&skip=0&take=50
+Cookie: {{StaffCookie}}
+
+### Doctor/DoctorAssistant + medications.read.
+GET {{StaffHost}}/api/staff/medications/{{MedicationId}}
+Cookie: {{StaffCookie}}
+
+### Doctor + medications.manage + CSRF.
+POST {{StaffHost}}/api/staff/medications
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "genericNameEn": "Synthetic Generic",
+  "genericNameAr": null,
+  "brandNameEn": "Synthetic Brand",
+  "brandNameAr": null,
+  "strength": "500",
+  "unit": "mg",
+  "form": 0,
+  "route": 0,
+  "category": "Analgesic"
+}
+
+### Doctor + medications.manage + CSRF. Strength and unit are separate tokens:
+### strength carries only the value ("500", compound "500/125"); the unit is never embedded.
+PUT {{StaffHost}}/api/staff/medications/{{MedicationId}}
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "genericNameEn": "Synthetic Generic",
+  "genericNameAr": null,
+  "brandNameEn": null,
+  "brandNameAr": null,
+  "strength": "400",
+  "unit": "mg",
+  "form": 1,
+  "route": 0,
+  "category": null,
+  "expectedRowVersion": "{{MedicationRowVersion}}"
+}
+
+### Doctor + medications.manage + CSRF.
+POST {{StaffHost}}/api/staff/medications/{{MedicationId}}/deactivate
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "expectedRowVersion": "{{MedicationRowVersion}}"
+}
+
+### Doctor + medications.manage + CSRF.
+POST {{StaffHost}}/api/staff/medications/{{MedicationId}}/activate
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "expectedRowVersion": "{{MedicationRowVersion}}"
+}
+
+### Doctor + prescriptions.write + patient scope + doctor authority + CSRF.
+# Creates a Draft derived from the visit (PatientId/DoctorId come from the visit).
+POST {{StaffHost}}/api/staff/patients/{{PatientId}}/visits/{{VisitId}}/prescriptions
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "notes": "Synthetic prescription notes"
+}
+
+### Doctor + prescriptions.read + patient scope.
+GET {{StaffHost}}/api/staff/patients/{{PatientId}}/visits/{{VisitId}}/prescriptions
+Cookie: {{StaffCookie}}
+
+### Doctor + prescriptions.read + patient scope.
+GET {{StaffHost}}/api/staff/patients/{{PatientId}}/prescriptions?skip=0&take=50
+Cookie: {{StaffCookie}}
+
+### Doctor + prescriptions.read + patient scope.
+GET {{StaffHost}}/api/staff/patients/{{PatientId}}/prescriptions/{{PrescriptionId}}
+Cookie: {{StaffCookie}}
+
+### Doctor + prescriptions.write + patient scope + doctor authority + CSRF.
+PUT {{StaffHost}}/api/staff/patients/{{PatientId}}/prescriptions/{{PrescriptionId}}/notes
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "notes": "Updated draft notes",
+  "expectedRowVersion": "{{PrescriptionRowVersion}}"
+}
+
+### Doctor + prescriptions.write + patient scope + doctor authority + CSRF.
+# Dose/frequency/duration may be null while the prescription is a Draft; finalize
+# requires all three on every item. MedicationId must reference an active catalog entry.
+POST {{StaffHost}}/api/staff/patients/{{PatientId}}/prescriptions/{{PrescriptionId}}/items
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "medicationId": "{{MedicationId}}",
+  "dose": "1 tablet",
+  "frequency": "twice daily",
+  "duration": "7 days",
+  "instructions": "after meals",
+  "displayOrder": 0,
+  "expectedRowVersion": "{{PrescriptionRowVersion}}"
+}
+
+### Doctor + prescriptions.write + patient scope + doctor authority + CSRF.
+PUT {{StaffHost}}/api/staff/patients/{{PatientId}}/prescriptions/{{PrescriptionId}}/items/{{ItemId}}
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "reselectedMedicationId": null,
+  "dose": "2 tablets",
+  "frequency": "twice daily",
+  "duration": "7 days",
+  "instructions": null,
+  "displayOrder": 0,
+  "expectedRowVersion": "{{PrescriptionRowVersion}}"
+}
+
+### Doctor + prescriptions.write + patient scope + doctor authority + CSRF.
+DELETE {{StaffHost}}/api/staff/patients/{{PatientId}}/prescriptions/{{PrescriptionId}}/items/{{ItemId}}
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "expectedRowVersion": "{{PrescriptionRowVersion}}"
+}
+
+### Doctor + prescriptions.write + patient scope + doctor authority + CSRF.
+# OrderedItemIds must list every current item exactly once in the desired order.
+PUT {{StaffHost}}/api/staff/patients/{{PatientId}}/prescriptions/{{PrescriptionId}}/items/order
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "orderedItemIds": ["{{ItemId}}"],
+  "expectedRowVersion": "{{PrescriptionRowVersion}}"
+}
+
+### Doctor + prescriptions.finalize + patient scope + doctor authority + CSRF.
+POST {{StaffHost}}/api/staff/patients/{{PatientId}}/prescriptions/{{PrescriptionId}}/finalize
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "expectedRowVersion": "{{PrescriptionRowVersion}}"
+}
+
+### Doctor + prescriptions.release + patient scope + doctor authority + CSRF.
+POST {{StaffHost}}/api/staff/patients/{{PatientId}}/prescriptions/{{PrescriptionId}}/release
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "expectedRowVersion": "{{PrescriptionRowVersion}}"
+}
+
+### Doctor + prescriptions.cancel + patient scope + doctor authority + CSRF.
+POST {{StaffHost}}/api/staff/patients/{{PatientId}}/prescriptions/{{PrescriptionId}}/cancel
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "reason": "Synthetic cancellation reason",
+  "expectedRowVersion": "{{PrescriptionRowVersion}}"
+}
+
+### Doctor + prescriptions.write + patient scope + doctor authority + CSRF.
+# The route prescription is the CANCELLED original; creates exactly one replacement Draft.
+POST {{StaffHost}}/api/staff/patients/{{PatientId}}/prescriptions/{{PrescriptionId}}/replacement
+Content-Type: application/json
+Cookie: {{StaffCookie}}; {{CsrfCookie}}
+X-CSRF-TOKEN: {{CsrfToken}}
+
+{
+  "notes": "Replacement draft",
+  "expectedOriginalRowVersion": "{{OriginalPrescriptionRowVersion}}"
+}
