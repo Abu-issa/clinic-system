@@ -1,5 +1,7 @@
 using Clinic.Application.Patients;
 using Clinic.Application.Visits;
+using Clinic.Application.Medications;
+using Clinic.Application.Prescriptions;
 using Clinic.Infrastructure.Authentication;
 using Clinic.Api.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -79,6 +81,10 @@ builder.Services.AddScoped<IPatientRecordsStore, PatientRecordsStore>();
 builder.Services.AddScoped<PatientRecordsService>();
 builder.Services.AddScoped<IVisitStore, VisitStore>();
 builder.Services.AddScoped<VisitService>();
+builder.Services.AddScoped<IMedicationCatalogStore, MedicationCatalogStore>();
+builder.Services.AddScoped<MedicationCatalogService>();
+builder.Services.AddScoped<IPrescriptionStore, PrescriptionStore>();
+builder.Services.AddScoped<PrescriptionService>();
 builder.Services.AddScoped<StaffCookieEvents>();
 builder.Services.AddAuthentication("ClinicStaff")
     .AddCookie("ClinicStaff", options => ConfigureCookie(options, "__Host-Clinic.Staff", 30))

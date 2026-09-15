@@ -23,11 +23,14 @@ public sealed class ClinicDbContext : Microsoft.AspNetCore.Identity.EntityFramew
     Set<DoctorDayClosure>();
     public DbSet<AppointmentReschedule> AppointmentReschedules =>
     Set<AppointmentReschedule>();
+    public DbSet<Medication> Medications => Set<Medication>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         PatientRecordsMapping.Configure(modelBuilder);
         VisitMapping.Configure(modelBuilder);
+        MedicationCatalogMapping.Configure(modelBuilder);
+        PrescriptionMapping.Configure(modelBuilder);
 
         modelBuilder.Entity<Patient>(patient =>
         {
