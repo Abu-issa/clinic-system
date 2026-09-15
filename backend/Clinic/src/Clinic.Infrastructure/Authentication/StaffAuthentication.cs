@@ -15,7 +15,7 @@ public sealed class StaffAuthentication(ClinicDbContext db, UserManager<StaffUse
     public const string EnrollmentClaim = "staff_enrollment";
     public static readonly string[] Roles = ["Doctor", "Receptionist", "DoctorAssistant"];
     public static readonly string[] InitialPermissions = ["appointments.availability", "appointments.reschedule", "appointments.cancel", "schedule.manage"];
-    public static readonly string[] Permissions = [.. InitialPermissions, "patients.admin.read", "patients.admin.write", "patients.clinical.read", "patients.clinical.write"];
+    public static readonly string[] Permissions = [.. InitialPermissions, "patients.admin.read", "patients.admin.write", "patients.clinical.read", "patients.clinical.write", "visits.read", "visits.write", "visits.finalize", "visits.amend", "vitals.write"];
     private static readonly StaffUser DummyUser = new();
     private static readonly PasswordHasher<StaffUser> DummyHasher = new();
     private static readonly string DummyHash = DummyHasher.HashPassword(DummyUser, Guid.NewGuid().ToString());
@@ -90,7 +90,8 @@ public sealed class StaffAuthentication(ClinicDbContext db, UserManager<StaffUse
         if (!intermediate)
         {
             var recordClaims = principal.Claims.Where(c => c.Type == "patient_record_id" ||
-                c.Type == "permission" && c.Value.StartsWith("patients.", StringComparison.Ordinal)).ToArray();
+                c.Type == "permission" && (c.Value.StartsWith("patients.", StringComparison.Ordinal) ||
+                    c.Value.StartsWith("visits.", StringComparison.Ordinal) || c.Value.StartsWith("vitals.", StringComparison.Ordinal))).ToArray();
             if (recordClaims.Length > 0)
             {
                 // A stamp check alone does not detect Identity claim removal without stamp rotation.

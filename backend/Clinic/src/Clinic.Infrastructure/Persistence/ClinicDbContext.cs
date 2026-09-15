@@ -27,6 +27,7 @@ public sealed class ClinicDbContext : Microsoft.AspNetCore.Identity.EntityFramew
     {
         base.OnModelCreating(modelBuilder);
         PatientRecordsMapping.Configure(modelBuilder);
+        VisitMapping.Configure(modelBuilder);
 
         modelBuilder.Entity<Patient>(patient =>
         {

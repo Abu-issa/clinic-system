@@ -56,7 +56,8 @@ public sealed class StaffAdministration(ClinicDbContext db, UserManager<StaffUse
             case "set-grants":
                 if (approvedRoles is null || approvedRoles.Length == 0 || approvedRoles.Except(StaffAuthentication.Roles).Any() ||
                     permissions is null || permissions.Except(StaffAuthentication.Permissions).Any()) throw new ArgumentException("Unsupported grants.");
-                await ValidateScopesAsync(scopes!);
+                scopes ??= [];
+                if (scopes.Length > 0) await ValidateScopesAsync(scopes);
                 patientScopes ??= [];
                 if (patientScopes.Contains(Guid.Empty) || patientScopes.Distinct().Count() != patientScopes.Length ||
                     await db.Patients.CountAsync(x => patientScopes.Contains(x.Id)) != patientScopes.Length)

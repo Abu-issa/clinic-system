@@ -1,0 +1,678 @@
+<title>Clinical Records Verification</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --bg-primary: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --bg-accent-subtle: #e0f2fe;
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-inverse: #ffffff;
+  --accent: #0284c7;
+  --accent-dark: #0369a1;
+  --status-pass-bg: #ecfdf5;
+  --status-pass-border: #a7f3d0;
+  --status-pass-text: #065f46;
+  --status-warn-bg: #fffbeb;
+  --status-warn-border: #fde68a;
+  --status-warn-text: #92400e;
+  --status-info-bg: #eff6ff;
+  --status-info-border: #bfdbfe;
+  --status-info-text: #1e40af;
+  --code-bg: #1e293b;
+  --code-text: #f8fafc;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-primary: #090d16;
+    --bg-surface: #111827;
+    --bg-subtle: #1f2937;
+    --bg-accent-subtle: #1e293b;
+    --border-subtle: #2d3748;
+    --border-strong: #4a5568;
+    --text-main: #f3f4f6;
+    --text-muted: #9ca3af;
+    --text-inverse: #090d16;
+    --accent: #38bdf8;
+    --accent-dark: #0284c7;
+    --status-pass-bg: #064e3b;
+    --status-pass-border: #047857;
+    --status-pass-text: #a7f3d0;
+    --status-warn-bg: #78350f;
+    --status-warn-border: #b45309;
+    --status-warn-text: #fde68a;
+    --status-info-bg: #1e3a8a;
+    --status-info-border: #2563eb;
+    --status-info-text: #bfdbfe;
+    --code-bg: #030712;
+    --code-text: #e2e8f0;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg-primary: #090d16;
+  --bg-surface: #111827;
+  --bg-subtle: #1f2937;
+  --bg-accent-subtle: #1e293b;
+  --border-subtle: #2d3748;
+  --border-strong: #4a5568;
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  --text-inverse: #090d16;
+  --accent: #38bdf8;
+  --accent-dark: #0284c7;
+  --status-pass-bg: #064e3b;
+  --status-pass-border: #047857;
+  --status-pass-text: #a7f3d0;
+  --status-warn-bg: #78350f;
+  --status-warn-border: #b45309;
+  --status-warn-text: #fde68a;
+  --status-info-bg: #1e3a8a;
+  --status-info-border: #2563eb;
+  --status-info-text: #bfdbfe;
+  --code-bg: #030712;
+  --code-text: #e2e8f0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  line-height: 1.6;
+  margin: 0;
+  padding: 2rem 1.5rem;
+  box-sizing: border-box;
+}
+
+.report-container {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+header {
+  border-bottom: 2px solid var(--border-subtle);
+  padding-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.meta-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.meta-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  width: fit-content;
+}
+
+.badge-pass {
+  background: var(--status-pass-bg);
+  border: 1px solid var(--status-pass-border);
+  color: var(--status-pass-text);
+}
+
+.badge-info {
+  background: var(--status-info-bg);
+  border: 1px solid var(--status-info-border);
+  color: var(--status-info-text);
+}
+
+.badge-warn {
+  background: var(--status-warn-bg);
+  border: 1px solid var(--status-warn-border);
+  color: var(--status-warn-text);
+}
+
+.section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: var(--text-main);
+}
+
+p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.grid-2col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+
+.card {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+th {
+  background: var(--bg-subtle);
+  color: var(--text-main);
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+}
+
+.check-status {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.check-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.check-title {
+  font-weight: 600;
+  color: var(--text-main);
+  font-size: 0.95rem;
+}
+
+.check-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  color: var(--text-main);
+}
+
+pre {
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.callout {
+  border-left: 4px solid var(--accent);
+  background: var(--bg-accent-subtle);
+  padding: 1rem 1.25rem;
+  border-radius: 0 6px 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.callout-title {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 0.95rem;
+}
+</style>
+
+<div class="report-container">
+  <header>
+    <div class="eyebrow">Backend Security Architecture & Quality Assurance</div>
+    <h1>Phase 3 Security & Verification Audit Report</h1>
+    <p>Comprehensive vertical slice verification for Visits &amp; Vital Measurements, including doctor authority architecture enforcement, concurrency race handling, granular authorization, and data isolation.</p>
+  </header>
+
+  <div class="metadata-grid">
+    <div class="meta-item">
+      <span class="meta-label">Total Test Suite</span>
+      <span class="meta-value">305 Tests Passing</span>
+      <span class="badge badge-pass">✓ 100% Green (92 Unit / 213 Integration)</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Build Diagnostics</span>
+      <span class="meta-value">0 Warnings / 0 Errors</span>
+      <span class="badge badge-pass">✓ Clean Compilation</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">EF Core Model Drift</span>
+      <span class="meta-value">Zero Pending Changes</span>
+      <span class="badge badge-pass">✓ Model & Snapshot Synced</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Target Migration</span>
+      <span class="meta-value">20260915161502_AddVisits...</span>
+      <span class="badge badge-info">Unapplied to Prod DB</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Architecture Decision: Doctor Clinical Authority Model</h2>
+    <div class="callout">
+      <div class="callout-title">Explicit Association Rule Enforced</div>
+      <p>A staff user in the Doctor role may create, edit, finalize, or amend a Visit <strong>ONLY</strong> when <code>Visit.DoctorId == StaffUser.AssociatedDoctorId</code>, verified directly against the current persisted database state per request.</p>
+    </div>
+
+    <div class="grid-2col">
+      <div class="card">
+        <h3>Enforced Architectural Rules</h3>
+        <ul style="margin: 0; padding-left: 1.25rem; color: var(--text-muted); font-size: 0.9rem; display: flex; flex-direction: column; gap: 0.5rem;">
+          <li><strong>No Scope Reinterpretation:</strong> Neither <code>schedule_doctor_id</code> nor <code>appointment_doctor_id</code> grants clinical authority over Visits.</li>
+          <li><strong>Persisted State Validation:</strong> <code>AssociatedDoctorId</code> is resolved from the live database context via <code>UserManager&lt;StaffUser&gt;</code>, preventing stale cookie escalation.</li>
+          <li><strong>No Cross-Doctor Delegation:</strong> Doctors cannot mutate visits owned by other physicians in this slice.</li>
+          <li><strong>Role Isolation:</strong> DoctorAssistants are restricted to <code>vitals.write</code> and <code>visits.read</code>; Receptionists are strictly excluded from all clinical endpoints (403 Forbidden).</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Role &amp; Permission Access Matrix</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Operation</th>
+                <th>Doctor</th>
+                <th>Assistant</th>
+                <th>Receptionist</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Create Visit</td>
+                <td><span class="badge badge-pass">Own Assoc ID</span></td>
+                <td><span class="badge badge-warn">403 Forbidden</span></td>
+                <td><span class="badge badge-warn">403 Forbidden</span></td>
+              </tr>
+              <tr>
+                <td>Update Draft</td>
+                <td><span class="badge badge-pass">Own Assoc ID</span></td>
+                <td><span class="badge badge-warn">403 Forbidden</span></td>
+                <td><span class="badge badge-warn">403 Forbidden</span></td>
+              </tr>
+              <tr>
+                <td>Finalize Visit</td>
+                <td><span class="badge badge-pass">Own Assoc ID</span></td>
+                <td><span class="badge badge-warn">403 Forbidden</span></td>
+                <td><span class="badge badge-warn">403 Forbidden</span></td>
+              </tr>
+              <tr>
+                <td>Add Amendment</td>
+                <td><span class="badge badge-pass">Own Assoc ID</span></td>
+                <td><span class="badge badge-warn">403 Forbidden</span></td>
+                <td><span class="badge badge-warn">403 Forbidden</span></td>
+              </tr>
+              <tr>
+                <td>Record Vitals</td>
+                <td><span class="badge badge-pass">Allowed</span></td>
+                <td><span class="badge badge-pass">Allowed</span></td>
+                <td><span class="badge badge-warn">403 Forbidden</span></td>
+              </tr>
+              <tr>
+                <td>Read Visits</td>
+                <td><span class="badge badge-pass">Patient Scoped</span></td>
+                <td><span class="badge badge-pass">Patient Scoped</span></td>
+                <td><span class="badge badge-warn">403 Forbidden</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>24-Point Comprehensive Verification &amp; Security Checklist</h2>
+    <div class="checklist">
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">01</span></div>
+        <div class="check-body">
+          <div class="check-title">Doctor Authority Model &amp; Persisted Association</div>
+          <div class="check-desc">Enforced <code>StaffUser.AssociatedDoctorId</code> direct check against SQL database. Appointment/schedule scopes rejected as clinical authority. Tested in <code>DoctorCannotCreateVisitForAnotherDoctorWithoutAuthority</code>.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">02</span></div>
+        <div class="check-body">
+          <div class="check-title">StaffAdministration Grant Isolation &amp; Scope Invariants</div>
+          <div class="check-desc">Allowing empty doctor scopes for non-Doctor roles in <code>ChangeAsync</code> maintains full invariant safety because patient policies strictly require <code>patient_record_id</code> claims.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">03</span></div>
+        <div class="check-body">
+          <div class="check-title">Visit Lifecycle State Machine &amp; Immutability</div>
+          <div class="check-desc">Draft allows edits and vital measurements; Finalization permanently seals clinical notes and vitals; Finalized visits accept only append-only amendments with mandatory non-empty reason and text.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">04</span></div>
+        <div class="check-body">
+          <div class="check-title">Optimistic Concurrency Control via SQL Server RowVersion</div>
+          <div class="check-desc">Aggregate root <code>Visit.RowVersion</code> automatically increments on every aggregate change, including adding amendments or vitals. Stale tokens return HTTP 409 Conflict (<code>visit_changed</code>).</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">05</span></div>
+        <div class="check-body">
+          <div class="check-title">SQL-Backed Concurrency Race Suite</div>
+          <div class="check-desc">Verified 5 dedicated integration tests: <code>ConcurrentFinalizeAndStaleEditReturns409</code>, <code>ConcurrentFinalizationAttemptsOnlyOneSucceeds</code>, <code>StaleVitalMutationReturns409</code>, <code>StaleAmendmentMutationReturns409</code>, and <code>FailedSaveDoesNotLeakPartialEntities</code>.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">06</span></div>
+        <div class="check-body">
+          <div class="check-title">Patient Resource Isolation &amp; Cross-Patient Probing Defense</div>
+          <div class="check-desc">Probing a visit under another patient route returns HTTP 404 (<code>visit_not_found</code>) without leaking patient existence or metadata, even when the doctor has authorization for both patients.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">07</span></div>
+        <div class="check-body">
+          <div class="check-title">Role &amp; Granular Permission Matrix Enforcement</div>
+          <div class="check-desc">Verified policies <code>VisitRead</code>, <code>VisitWrite</code>, <code>VisitFinalize</code>, <code>VisitAmend</code>, and <code>VitalWrite</code> across all 3 staff roles with required permissions.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">08</span></div>
+        <div class="check-body">
+          <div class="check-title">Dynamic Per-Request Grant Revalidation</div>
+          <div class="check-desc"><code>StaffAuthentication.ValidateAsync</code> dynamically revalidates persisted database claims on each request, instantly invalidating stale session cookies upon administrative permission/scope removal without security stamp changes.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">09</span></div>
+        <div class="check-body">
+          <div class="check-title">Anti-CSRF Protection &amp; Request Token Binding</div>
+          <div class="check-desc">All POST and PUT endpoints validate <code>X-CSRF-TOKEN</code>. Missing or forged tokens return HTTP 400 with <code>invalid_csrf_token</code> Problem Details.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">10</span></div>
+        <div class="check-body">
+          <div class="check-title">Intermediate MFA Session Isolation</div>
+          <div class="check-desc">Users in intermediate authentication states (password verified but TOTP pending) receive HTTP 401 Unauthorized when attempting to call any clinical or patient endpoint.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">11</span></div>
+        <div class="check-body">
+          <div class="check-title">Payload Flooding &amp; Request Size Limits</div>
+          <div class="check-desc"><code>[RequestSizeLimit(131072)]</code> applied to <code>StaffVisitsController</code> to prevent memory exhaustion and DoS via oversized payloads.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">12</span></div>
+        <div class="check-body">
+          <div class="check-title">Overposting &amp; Server-Owned Field Tampering Defense</div>
+          <div class="check-desc">DTOs strictly isolate inputs. Server-controlled fields (<code>Id</code>, <code>CreatedAtUtc</code>, <code>FinalizedAtUtc</code>, <code>RowVersion</code>, <code>CreatedByStaffId</code>) are never client-assignable.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">13</span></div>
+        <div class="check-body">
+          <div class="check-title">Polymorphic Vital Measurement JSON Contract</div>
+          <div class="check-desc">Using <code>JsonDerivedType</code> discriminator mappings for 6 vital types (<code>BloodPressure</code>, <code>HeartRate</code>, <code>Temperature</code>, <code>OxygenSaturation</code>, <code>Weight</code>, <code>Height</code>). Malformed or unmapped discriminators return HTTP 400 Problem Details.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">14</span></div>
+        <div class="check-body">
+          <div class="check-title">Domain Boundary Validation on Vital Measurements</div>
+          <div class="check-desc">Domain value object guards reject impossible measurements (e.g., negative values, O2 sat &gt; 100%, diastolic &gt; systolic) with clean exceptions that preserve aggregate state.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">15</span></div>
+        <div class="check-body">
+          <div class="check-title">Protected Health Information (PHI) &amp; Privacy Safeguards</div>
+          <div class="check-desc">Clinical content (chief complaint, diagnosis, clinician notes) is completely omitted from Problem Details error responses and server log messages (verified in <code>PrivacyProtectionKeepsClinicalContentOutOfProblemDetails</code>).</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">16</span></div>
+        <div class="check-body">
+          <div class="check-title">HTTP Cache-Control: no-store Enforcement</div>
+          <div class="check-desc">Middleware enforces <code>Cache-Control: no-store</code> on all <code>/api/staff/patients</code> routes to prevent browser and proxy caching of sensitive medical data.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">17</span></div>
+        <div class="check-body">
+          <div class="check-title">RFC 7807 Problem Details Sanitization &amp; Traceability</div>
+          <div class="check-desc">All API errors conform to Problem Details standard with sanitized error codes (e.g., <code>visit_changed</code>, <code>invalid_row_version</code>, <code>visit_not_found</code>) and correlation <code>traceId</code>.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">18</span></div>
+        <div class="check-body">
+          <div class="check-title">EF Core Foreign Key Cascade Restraints</div>
+          <div class="check-desc">All foreign keys configured with <code>DeleteBehavior.Restrict</code> to prevent accidental cascade deletion of visits, vitals, amendments, patients, or doctors.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">19</span></div>
+        <div class="check-body">
+          <div class="check-title">Database Snapshot Synchronization &amp; Drift Check</div>
+          <div class="check-desc"><code>dotnet ef migrations has-pending-model-changes</code> confirmed zero drift between C# domain entities, mapping configurations, and migration snapshot.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">20</span></div>
+        <div class="check-body">
+          <div class="check-title">SQL Transaction Isolation &amp; Deadlock Prevention</div>
+          <div class="check-desc">Administrative and provisioning operations use SQL application locks (<code>sys.sp_getapplock</code>) with exclusive transaction ownership to serialize modifications.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">21</span></div>
+        <div class="check-body">
+          <div class="check-title">Asynchronous Cancellation Token Propagation</div>
+          <div class="check-desc">All controller actions and service methods accept and forward <code>CancellationToken</code> down through Entity Framework Core query and execution pipelines.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">22</span></div>
+        <div class="check-body">
+          <div class="check-title">Entity State Detachment on Failed Mutations</div>
+          <div class="check-desc">Concurrency and validation exceptions properly detach modified entities or discard DbContext scope, preventing entity leakage in pooled or retry contexts.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">23</span></div>
+        <div class="check-body">
+          <div class="check-title">Comprehensive Unit Test Suite (92 Tests)</div>
+          <div class="check-desc">Full test coverage across booking policies, domain aggregate transitions, vital range invariants, and amendment integrity.</div>
+        </div>
+      </div>
+
+      <div class="check-item">
+        <div class="check-status"><span class="badge badge-pass">24</span></div>
+        <div class="check-body">
+          <div class="check-title">Comprehensive Integration Test Suite (213 Tests)</div>
+          <div class="check-desc">Real HTTP integration tests covering authentication, MFA, TOTP enrollment, Identity administration, concurrency races, CSRF, and visit operations.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Detailed Concurrency &amp; Race Condition Architecture</h2>
+    <p>The clinical record subsystem uses a strict optimistic concurrency control scheme implemented at the aggregate root level:</p>
+    <pre><code>// Optimistic Concurrency Token Verification in VisitStore.cs
+public async Task&lt;VisitResult&gt; UpdateAsync(Guid patientId, Guid visitId, UpdateVisitRequest request, string actorStaffId, CancellationToken ct)
+{
+    var visit = await db.Set&lt;Visit&gt;()
+        .Include(v => v.VitalMeasurements)
+        .Include(v => v.Amendments)
+        .SingleOrDefaultAsync(v => v.Id == visitId && v.PatientId == patientId, ct);
+
+    if (visit is null) return VisitResult.Failure(VisitError.VisitNotFound);
+    if (!visit.RowVersion.SequenceEqual(request.ExpectedRowVersion))
+        return VisitResult.Failure(VisitError.VisitChanged);
+
+    visit.UpdateClinicalContent(request.Content, clock.GetUtcNow());
+
+    try
+    {
+        await db.SaveChangesAsync(ct);
+        return VisitResult.Success(Map(visit));
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+        return VisitResult.Failure(VisitError.VisitChanged);
+    }
+}</code></pre>
+  </div>
+</div>

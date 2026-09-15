@@ -1,4 +1,5 @@
 using Clinic.Application.Patients;
+using Clinic.Application.Visits;
 using Clinic.Infrastructure.Authentication;
 using Clinic.Api.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -76,6 +77,8 @@ builder.Services.AddScoped<IBookingTransaction, SqlBookingTransaction>();
 builder.Services.AddStaffIdentity();
 builder.Services.AddScoped<IPatientRecordsStore, PatientRecordsStore>();
 builder.Services.AddScoped<PatientRecordsService>();
+builder.Services.AddScoped<IVisitStore, VisitStore>();
+builder.Services.AddScoped<VisitService>();
 builder.Services.AddScoped<StaffCookieEvents>();
 builder.Services.AddAuthentication("ClinicStaff")
     .AddCookie("ClinicStaff", options => ConfigureCookie(options, "__Host-Clinic.Staff", 30))
@@ -110,6 +113,11 @@ builder.Services.AddAuthorization(options =>
     PatientPolicy("PatientAdminWrite", "patients.admin.write", ["Doctor", "Receptionist"]);
     PatientPolicy("PatientClinicalRead", "patients.clinical.read", ["Doctor", "DoctorAssistant"]);
     PatientPolicy("PatientClinicalWrite", "patients.clinical.write", ["Doctor"]);
+    PatientPolicy("VisitRead", "visits.read", ["Doctor", "DoctorAssistant"]);
+    PatientPolicy("VisitWrite", "visits.write", ["Doctor"]);
+    PatientPolicy("VisitFinalize", "visits.finalize", ["Doctor"]);
+    PatientPolicy("VisitAmend", "visits.amend", ["Doctor"]);
+    PatientPolicy("VitalWrite", "vitals.write", ["Doctor", "DoctorAssistant"]);
     options.AddPolicy("StaffSession", policy => policy.RequireAuthenticatedUser().RequireRole("Doctor", "Receptionist", "DoctorAssistant").RequireClaim("amr", "mfa"));
     options.AddPolicy("StaffBooking", policy =>
     {
