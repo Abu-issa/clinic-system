@@ -375,3 +375,12 @@ X-CSRF-TOKEN: {{CsrfToken}}
   "notes": "Replacement draft",
   "expectedOriginalRowVersion": "{{OriginalPrescriptionRowVersion}}"
 }
+
+### Doctor + prescriptions.read + patient scope. Printable PDF of a Finalized or Released
+### prescription. language=ar (RTL) or language=en; any other value is 400.
+GET {{StaffHost}}/api/staff/patients/{{PatientId}}/prescriptions/{{PrescriptionId}}/pdf?language=ar
+Cookie: {{StaffCookie}}
+
+### Same endpoint in English.
+GET {{StaffHost}}/api/staff/patients/{{PatientId}}/prescriptions/{{PrescriptionId}}/pdf?language=en
+Cookie: {{StaffCookie}}

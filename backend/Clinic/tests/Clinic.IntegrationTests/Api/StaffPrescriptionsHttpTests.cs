@@ -214,6 +214,264 @@ public sealed class StaffPrescriptionsHttpTests : IAsyncLifetime
         return await Json(response);
     }
 
+    // ---------------- Printable PDF ----------------
+
+    private async Task<Guid> FinalizedPrescriptionAsync(HttpClient client, Guid medicationId)
+    {
+        var visitId = await SeedVisitAsync();
+        var draft = await CreateDraft(client, visitId);
+        draft = await AddItem(client, draft, medicationId);
+        var finalized = await client.PostAsJsonAsync(
+            $"/api/staff/patients/{_patientId}/prescriptions/{draft.GetProperty("id").GetGuid()}/finalize",
+            new { ExpectedRowVersion = draft.GetProperty("rowVersion").GetString() });
+        Assert.Equal(HttpStatusCode.OK, finalized.StatusCode);
+        return (await Json(finalized)).GetProperty("id").GetGuid();
+    }
+
+    [Fact]
+    public async Task ArabicAndEnglishPdfsAreProducedWithSafeHeaders()
+    {
+        using var client = await EnrolledClient(DoctorName);
+        var medicationId = await SeedMedicationAsync("PdfRoundTrip");
+        var prescriptionId = await FinalizedPrescriptionAsync(client, medicationId);
+
+        foreach (var language in new[] { "ar", "en" })
+        {
+            var response = await client.GetAsync(
+                $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/pdf?language={language}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("application/pdf", response.Content.Headers.ContentType!.MediaType);
+            Assert.True(response.Headers.CacheControl?.NoStore);
+            var disposition = response.Content.Headers.ContentDisposition!;
+            Assert.Equal("prescription-" + prescriptionId.ToString("N") + "-" + language + ".pdf",
+                disposition.FileName!.Trim('"'));
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            Assert.True(bytes.Length > 1000);
+            Assert.Equal(0x25, bytes[0]); // %PDF signature
+            Assert.Equal(0x50, bytes[1]);
+            Assert.Equal(0x44, bytes[2]);
+            Assert.Equal(0x46, bytes[3]);
+            Assert.DoesNotContain("Synthetic Prescription Patient", disposition.FileName, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public async Task PdfGenerationDoesNotChangeLifecycleOrRowVersion()
+    {
+        using var client = await EnrolledClient(DoctorName);
+        var medicationId = await SeedMedicationAsync("PdfImmutable");
+        var prescriptionId = await FinalizedPrescriptionAsync(client, medicationId);
+
+        var before = await client.GetAsync($"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}");
+        var beforeDetails = await Json(before);
+
+        var pdf = await client.GetAsync(
+            $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/pdf?language=en");
+        Assert.Equal(HttpStatusCode.OK, pdf.StatusCode);
+
+        var after = await client.GetAsync($"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}");
+        var afterDetails = await Json(after);
+        Assert.Equal(beforeDetails.GetProperty("rowVersion").GetString(),
+            afterDetails.GetProperty("rowVersion").GetString());
+        Assert.Equal(1, afterDetails.GetProperty("status").GetInt32());
+    }
+
+    [Theory]
+    [InlineData("draft", 1)]
+    [InlineData("cancelled", 3)]
+    public async Task NonPrintableLifecycleReturns409(string mode, int finalizeFirst)
+    {
+        using var client = await EnrolledClient(DoctorName);
+        var medicationId = await SeedMedicationAsync("PdfLifecycle" + mode);
+        var visitId = await SeedVisitAsync();
+        var draft = await CreateDraft(client, visitId);
+        draft = await AddItem(client, draft, medicationId);
+        var prescriptionId = draft.GetProperty("id").GetGuid();
+        var version = draft.GetProperty("rowVersion").GetString()!;
+
+        if (finalizeFirst == 1)
+        {
+            var finalized = await client.PostAsJsonAsync(
+                $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/finalize",
+                new { ExpectedRowVersion = version });
+            Assert.Equal(HttpStatusCode.OK, finalized.StatusCode);
+            var released = await client.PostAsJsonAsync(
+                $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/cancel",
+                new { Reason = "print check", ExpectedRowVersion = (await Json(finalized)).GetProperty("rowVersion").GetString() });
+            Assert.Equal(HttpStatusCode.OK, released.StatusCode);
+        }
+
+        var response = await client.GetAsync(
+            $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/pdf?language=en");
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("not_printable", (await Json(response)).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task UnsupportedOrMissingLanguageReturns400()
+    {
+        using var client = await EnrolledClient(DoctorName);
+        var medicationId = await SeedMedicationAsync("PdfLanguage");
+        var prescriptionId = await FinalizedPrescriptionAsync(client, medicationId);
+
+        foreach (var language in new[] { "fr", "arabic", "AR", "" })
+        {
+            var response = await client.GetAsync(
+                $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/pdf?language={language}");
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal("invalid_input", (await Json(response)).GetProperty("code").GetString());
+        }
+
+        var missing = await client.GetAsync(
+            $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/pdf");
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+    }
+
+    [Fact]
+    public async Task PdfAccessRequiresScopeRoleAndPermission()
+    {
+        using var doctor = await EnrolledClient(DoctorName);
+        var medicationId = await SeedMedicationAsync("PdfAccess");
+        var prescriptionId = await FinalizedPrescriptionAsync(doctor, medicationId);
+        var url = $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/pdf?language=ar";
+
+        // Wrong patient scope: the other doctor holds prescriptions.read + scheduling claims
+        // but is scoped to the same patient here; remove the patient scope (stamp rotates, so
+        // a fresh session is needed) - scheduling claims alone must not grant access.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var admin = scope.ServiceProvider.GetRequiredService<StaffAdministration>();
+            await admin.ChangeAsync(_otherDoctorUserId, "set-grants",
+                approvedRoles: ["Doctor"], permissions: DoctorPermissions, scopes: [_doctorEntityId], patientScopes: []);
+        }
+        using var schedulingOnly = await EnrolledClient(OtherDoctorName);
+        Assert.Equal(HttpStatusCode.Forbidden, (await schedulingOnly.GetAsync(url)).StatusCode);
+
+        using var assistant = await EnrolledClient(AssistantName);
+        Assert.Equal(HttpStatusCode.Forbidden, (await assistant.GetAsync(url)).StatusCode);
+
+        using var receptionist = await EnrolledClient(ReceptionistName);
+        Assert.Equal(HttpStatusCode.Forbidden, (await receptionist.GetAsync(url)).StatusCode);
+
+        // Anonymous.
+        using var anonymous = Client();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(url)).StatusCode);
+    }
+
+    [Fact]
+    public async Task PdfRouteMismatchHidesExistenceAndRevokedReadInvalidatesSession()
+    {
+        using var client = await EnrolledClient(DoctorName);
+        var medicationId = await SeedMedicationAsync("PdfMismatch");
+        var prescriptionId = await FinalizedPrescriptionAsync(client, medicationId);
+
+        Guid wrongPatient;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClinicDbContext>();
+            var admin = scope.ServiceProvider.GetRequiredService<StaffAdministration>();
+            var otherPatient = new Patient("Pdf Mismatch Patient", "pdf-mismatch-phone");
+            db.Add(otherPatient);
+            await db.SaveChangesAsync();
+            wrongPatient = otherPatient.Id;
+            await admin.ChangeAsync(_doctorUserId, "set-grants",
+                approvedRoles: ["Doctor"], permissions: DoctorPermissions, scopes: [_doctorEntityId],
+                patientScopes: [_patientId, otherPatient.Id]);
+        }
+
+        using var rescoped = await EnrolledClient(DoctorName);
+        var mismatch = await rescoped.GetAsync(
+            $"/api/staff/patients/{wrongPatient}/prescriptions/{prescriptionId}/pdf?language=en");
+        Assert.Equal(HttpStatusCode.NotFound, mismatch.StatusCode);
+        Assert.Equal("prescription_not_found", (await Json(mismatch)).GetProperty("code").GetString());
+
+        // Revoked prescriptions.read with the old (unchanged) cookie.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<StaffUser>>();
+            var user = (await users.FindByIdAsync(_doctorUserId))!;
+            Assert.True((await users.RemoveClaimAsync(user,
+                new System.Security.Claims.Claim("permission", "prescriptions.read"))).Succeeded);
+        }
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await rescoped.GetAsync(
+                $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/pdf?language=en")).StatusCode);
+    }
+
+    [Fact]
+    public async Task PdfContentUsesSnapshotsNotCurrentCatalogValues()
+    {
+        using var client = await EnrolledClient(DoctorName);
+        var medicationId = await SeedMedicationAsync("PdfSnapshot");
+        var prescriptionId = await FinalizedPrescriptionAsync(client, medicationId);
+        var url = $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/pdf?language=en";
+
+        var before = await (await client.GetAsync(url)).Content.ReadAsByteArrayAsync();
+
+        // Catalog changes after finalization must not alter the printable snapshot content;
+        // the deterministic renderer must produce identical bytes.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClinicDbContext>();
+            var medication = await db.Medications.SingleAsync(x => x.Id == medicationId);
+            medication.UpdateDetails(medication.GenericNameEn, null, "Changed-Brand", null, "999", "ml",
+                DosageForm.Syrup, MedicationRoute.Topical, null, "admin", DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync();
+        }
+
+        var after = await (await client.GetAsync(url)).Content.ReadAsByteArrayAsync();
+        Assert.Equal(before, after);
+    }
+
+    [Fact]
+    public async Task LongBoundedContentRendersWithoutTruncationOrFailure()
+    {
+        using var client = await EnrolledClient(DoctorName);
+        var medicationId = await SeedMedicationAsync("PdfLong");
+        var visitId = await SeedVisitAsync();
+        var draft = await CreateDraft(client, visitId);
+        var longInstructions = new string('A', 250) + " " + new string('B', 249);
+        for (var i = 0; i < 30; i++)
+        {
+            var response = await client.PostAsJsonAsync(
+                $"/api/staff/patients/{_patientId}/prescriptions/{draft.GetProperty("id").GetGuid()}/items",
+                new { MedicationId = medicationId, Dose = "1 tablet", Frequency = "twice daily " + i,
+                      Duration = "7 days", Instructions = longInstructions, DisplayOrder = (int?)i,
+                      ExpectedRowVersion = draft.GetProperty("rowVersion").GetString() });
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            draft = await Json(response);
+        }
+
+        var prescriptionId = draft.GetProperty("id").GetGuid();
+        var finalized = await client.PostAsJsonAsync(
+            $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/finalize",
+            new { ExpectedRowVersion = draft.GetProperty("rowVersion").GetString() });
+        Assert.Equal(HttpStatusCode.OK, finalized.StatusCode);
+
+        var pdf = await client.GetAsync(
+            $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/pdf?language=ar");
+        Assert.Equal(HttpStatusCode.OK, pdf.StatusCode);
+        var bytes = await pdf.Content.ReadAsByteArrayAsync();
+        // A single-page one-item document is ~8-12KB; 30 long items must paginate to far more.
+        Assert.True(bytes.Length > 60_000, $"Unexpectedly small document: {bytes.Length} bytes.");
+    }
+
+    [Fact]
+    public async Task IntermediateSessionAndAnonymousCannotDownloadPdfs()
+    {
+        var visitId = await SeedVisitAsync();
+        using var enrolled = await EnrolledClient(DoctorName);
+        var medicationId = await SeedMedicationAsync("PdfAuth");
+        var prescriptionId = await FinalizedPrescriptionAsync(enrolled, medicationId);
+        var url = $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/pdf?language=en";
+
+        using var intermediate = Client();
+        await Csrf(intermediate);
+        using var login = await intermediate.PostAsJsonAsync("/api/staff/auth/login", new { userName = DoctorName, password = Password });
+        Assert.True(login.IsSuccessStatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await intermediate.GetAsync(url)).StatusCode);
+    }
+
     // ---------------- Security ----------------
 
     [Fact]

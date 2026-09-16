@@ -3,6 +3,7 @@ using Clinic.Application.Visits;
 using Clinic.Application.Medications;
 using Clinic.Application.Prescriptions;
 using Clinic.Infrastructure.Authentication;
+using Clinic.Infrastructure.Printing;
 using Clinic.Api.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Threading.RateLimiting;
@@ -27,6 +28,13 @@ builder.Services.AddOptions<BookingPolicySettings>()
     .BindConfiguration("BookingPolicy")
     .Validate(settings => settings.IsValid(), "Invalid booking policy durations, interval, notice, or horizon.")
     .ValidateOnStart();
+// Printable clinic display details contain no secrets; real values are configured per deployment.
+builder.Services.AddOptions<PrintClinicDetails>()
+    .BindConfiguration("ClinicDisplay")
+    .Validate(clinic => !string.IsNullOrWhiteSpace(clinic.Name) && !string.IsNullOrWhiteSpace(clinic.Phone),
+        "Clinic display name and phone are required for printable prescriptions.")
+    .ValidateOnStart();
+builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<PrintClinicDetails>>().Value);
 builder.Services.AddSingleton(provider => new BookingPolicy(
     provider.GetRequiredService<IOptions<BookingPolicySettings>>().Value,
     provider.GetRequiredService<TimeZoneInfo>()));
@@ -85,6 +93,9 @@ builder.Services.AddScoped<IMedicationCatalogStore, MedicationCatalogStore>();
 builder.Services.AddScoped<MedicationCatalogService>();
 builder.Services.AddScoped<IPrescriptionStore, PrescriptionStore>();
 builder.Services.AddScoped<PrescriptionService>();
+builder.Services.AddScoped<IPrescriptionPrintStore, PrescriptionPrintStore>();
+builder.Services.AddSingleton<IPrescriptionPdfRenderer, QuestPdfPrescriptionRenderer>();
+builder.Services.AddScoped<PrescriptionPrintService>();
 builder.Services.AddScoped<StaffCookieEvents>();
 builder.Services.AddAuthentication("ClinicStaff")
     .AddCookie("ClinicStaff", options => ConfigureCookie(options, "__Host-Clinic.Staff", 30))

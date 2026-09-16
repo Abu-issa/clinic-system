@@ -15,7 +15,8 @@ public enum PrescriptionError
     InvalidRowVersion = 7,
     PrescriptionChanged = 8,
     InvalidLifecycle = 9,
-    ReplacementMismatch = 10
+    ReplacementMismatch = 10,
+    NotPrintable = 11
 }
 
 public sealed record PrescriptionResult(bool IsSuccess, PrescriptionError Error, PrescriptionDetails? Details = null)

@@ -23,6 +23,7 @@ namespace Clinic.Api.Controllers;
 [RequestSizeLimit(131072)]
 public sealed class StaffPrescriptionsController(
     PrescriptionService service,
+    PrescriptionPrintService printService,
     VisitService visits,
     IAuthorizationService authorization,
     IAntiforgery antiforgery,
@@ -77,6 +78,43 @@ public sealed class StaffPrescriptionsController(
         return result.IsSuccess
             ? Results.Ok(Map(result.Details!))
             : MapError(result.Error, "The prescription request could not be completed.");
+    }
+
+    /// <summary>
+    /// Read-only printable derivative of a Finalized or Released prescription. Same authorization
+    /// as prescription details; no CSRF because nothing mutates, and no lifecycle transition occurs.
+    /// </summary>
+    [HttpGet("prescriptions/{prescriptionId:guid}/pdf")]
+    public async Task<IResult> Pdf(Guid patientId, Guid prescriptionId, [FromQuery] string? language, CancellationToken ct)
+    {
+        if (!await Allowed(patientId, "PrescriptionRead")) return Results.Forbid();
+
+        // Exactly "ar" and "en" are supported; anything else (including a missing value) is 400.
+        var requestedLanguage = language switch
+        {
+            "ar" => PrintLanguage.Arabic,
+            "en" => PrintLanguage.English,
+            _ => (PrintLanguage?)null
+        };
+        if (requestedLanguage is null)
+            return Error(400, "invalid_input", "The prescription request could not be completed.");
+
+        var result = await printService.GetPdfAsync(patientId, prescriptionId, requestedLanguage.Value, ct);
+        if (!result.IsSuccess)
+            return result.Error switch
+            {
+                // A wrong-patient route hides existence exactly like the details endpoint.
+                PrescriptionError.PrescriptionNotFound => Error(404, "prescription_not_found",
+                    "The prescription request could not be completed."),
+                PrescriptionError.NotPrintable => Error(409, "not_printable",
+                    "The prescription request could not be completed."),
+                _ => Error(400, "invalid_input", "The prescription request could not be completed.")
+            };
+
+        // The filename is derived from the route prescription id and the whitelisted language
+        // token only: no patient name, MRN, or caller-controlled header content.
+        return Results.Bytes(result.Pdf!, "application/pdf",
+            fileDownloadName: $"prescription-{prescriptionId:N}-{language}.pdf");
     }
 
     [HttpPut("prescriptions/{prescriptionId:guid}/notes")]
