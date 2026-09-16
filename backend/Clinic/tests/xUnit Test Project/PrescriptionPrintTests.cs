@@ -111,7 +111,7 @@ public sealed class PrescriptionPrintTests
     [Fact]
     public async Task ExcessiveItemCountIsRejectedBeforeRendering()
     {
-        var items = Enumerable.Range(0, PrescriptionPrintService.MaxPrintableItems + 1)
+        var items = Enumerable.Range(0, Prescription.MaxItemCount + 1)
             .Select(i => new PrescriptionPrintItemProjection(i, $"Med{i}", null, null, null, "1", "mg",
                 DosageForm.Tablet, MedicationRoute.Oral, "1", "daily", "1 day", null))
             .ToArray();
@@ -124,7 +124,8 @@ public sealed class PrescriptionPrintTests
     [Fact]
     public void RealRendererProducesValidReproduciblePdfsForBothLanguages()
     {
-        var renderer = new QuestPdfPrescriptionRenderer();
+        var renderer = new QuestPdfPrescriptionRenderer(
+            new PrintLicenseOptions { PdfLicenseType = "Community" });
         var view = new PrescriptionPrintView(
             PrescriptionId, PrintLanguage.Arabic, "Synthetic Clinic", "Synthetic Address", "Synthetic Phone",
             Now, "Synthetic Patient", "MRN-77", new DateOnly(1990, 5, 1), "Synthetic Doctor",

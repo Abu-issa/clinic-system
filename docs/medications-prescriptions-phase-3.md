@@ -17,12 +17,29 @@ migration remains the only one (still NOT applied to ClinicDb).
   before any production deployment the clinic must confirm it meets the Community conditions or
   purchase Professional/Enterprise. No license key, watermark, or activation is involved
   (good-faith self-certification).
+- **License selection is an explicit deployment decision.** `QuestPDF.Settings.License` (the
+  only supported QuestPDF configuration mechanism) is driven by the required
+  `PrintLicensing:PdfLicenseType` configuration value, validated at startup to be exactly
+  `Community`, `Professional`, or `Enterprise` (`Evaluation` is refused). Nothing is inherited
+  silently: the shipped base appsettings deliberately omit the value, development is configured
+  in `appsettings.Development.json` (Community), and production startup fails until the
+  operator makes the choice. The renderer re-validates defensively.
 - Fonts bundled reproducibly as embedded resources in `Clinic.Infrastructure` (no reliance on
   Windows-installed fonts; `UseSystemFonts = false`): **Noto Sans Arabic** and **Noto Sans**,
   Regular weights, from the official notofonts project. Both are licensed under the **SIL Open
   Font License 1.1**, which permits embedding in documents; the required copyright/license
   text ships beside the font files (`Fonts/LICENSE-OFL.txt`) and is embedded into the assembly.
 - Arabic shaping and RTL layout are handled by QuestPDF (HarfBuzz-based) — no custom shaping.
+
+## Item-count invariant
+
+`Prescription.MaxItemCount` (200) is the **single authoritative limit**, enforced by the domain
+at item addition: no application-supported path can create — and therefore finalize or release —
+a prescription the print pipeline cannot represent. Rejected additions leave no partial state
+(no item row, no aggregate mutation). The print service reuses the same constant only as a
+defensive guard for privileged direct writes. Over-limit additions map to 400 `invalid_input`.
+Tests prove exactly-maximum acceptance, finalization, printability, and max+1 rejection
+(domain, service, and HTTP levels).
 
 ## Rendering flow (dependencies point inward)
 
@@ -50,14 +67,15 @@ migration remains the only one (still NOT applied to ClinicDb).
 - Response: `application/pdf`, `Cache-Control: no-store`, `Content-Disposition: attachment;
   filename="prescription-{id}-{language}.pdf"` — filename contains only the route prescription
   id and the whitelisted language token (no patient name/MRN, no header injection surface).
-- Document size is bounded by domain text limits plus a 200-item service cap; rendering
+- Document size is bounded by domain text limits plus the domain item-count maximum; rendering
   failures surface as sanitized errors (`PrescriptionRenderingException` → generic handler;
   no clinical values attached).
 
 ## PDF content and deliberate exclusions
 
-Included: clinic name/address/phone (validated configuration — synthetic placeholders ship in
-appsettings.json and MUST be replaced per deployment), prescription identifier, prescription
+Included: clinic name/address/phone (validated configuration — development/test deliberately
+use the shipped clearly-synthetic placeholders, while **production startup refuses blank,
+oversized, or placeholder values**, so a real clinic identity decision is unavoidable), prescription identifier, prescription
 (finalization) date, patient name, MRN, date of birth when stored, prescribing doctor display
 name, items in DisplayOrder with snapshot generic/brand names, snapshot strength/unit/form/
 route, dose, frequency, duration, instructions, page numbering ("Page X / Y") on every page,
@@ -66,7 +84,8 @@ stored alternate name was used verbatim (no translation is ever invented).
 
 Excluded by design: internal Visit notes, diagnosis, ClinicianNotes/InternalNotes, cancellation
 reason, rowversions, Visit/Appointment identifiers, staff account IDs, claims/scopes, and any
-security metadata. The view type enforces this structurally.
+security metadata. The view type enforces this structurally. Document size is additionally
+bounded by the domain item-count limit above.
 
 Language behavior: Arabic uses RTL layout with Noto Sans Arabic (Noto Sans as ordered font
 fallback); English uses LTR. Numeric values, units and dose direction are preserved in

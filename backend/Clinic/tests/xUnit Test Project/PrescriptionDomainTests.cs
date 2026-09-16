@@ -241,6 +241,29 @@ public sealed class PrescriptionDomainTests
     }
 
     [Fact]
+    public void ItemCountLimitIsEnforcedAtTheDomainBoundaryWithoutPartialMutation()
+    {
+        var p = Draft();
+        var med = Medication();
+        for (var i = 0; i < Prescription.MaxItemCount; i++)
+            p.AddItem(med, "1 tablet", "twice daily", "7 days", null, i, "doctor", Now.AddMinutes(i));
+
+        Assert.Equal(Prescription.MaxItemCount, p.Items.Count);
+
+        // The rejected 201st add leaves no partial state behind.
+        var lastModified = p.LastModifiedAtUtc;
+        Assert.Throws<ArgumentException>(() =>
+            p.AddItem(med, "1 tablet", "twice daily", "7 days", null, null, "doctor", Now.AddHours(1)));
+        Assert.Equal(Prescription.MaxItemCount, p.Items.Count);
+        Assert.Equal(lastModified, p.LastModifiedAtUtc);
+
+        // Exactly the maximum is still complete-able, finalizable, and consistent.
+        p.FinalizePrescription(new Dictionary<Guid, bool> { [med.Id] = true }, "doctor", Now.AddHours(2));
+        Assert.Equal(PrescriptionStatus.Finalized, p.Status);
+        Assert.Equal(Prescription.MaxItemCount, p.Items.Count);
+    }
+
+    [Fact]
     public void PrescriptionRequiresValidReferences()
     {
         Assert.Throws<ArgumentException>(() => new Prescription(Guid.Empty, PatientId, DoctorId, null, null, "doctor", Now));

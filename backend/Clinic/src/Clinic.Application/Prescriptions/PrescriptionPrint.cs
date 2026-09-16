@@ -10,12 +10,36 @@ public enum PrintLanguage
     English = 2
 }
 
-/// <summary>Configured clinic display details used on every printed document. Contains no secrets.</summary>
+/// <summary>
+/// Configured clinic display details used on every printed document. Contains no secrets.
+/// Synthetic placeholder values are acceptable only in development/test; production startup
+/// rejects them (see PrintClinicDetails.IsSyntheticPlaceholder).
+/// </summary>
 public sealed class PrintClinicDetails
 {
+    public const int MaxNameLength = 200;
+    public const int MaxAddressLineLength = 300;
+    public const int MaxPhoneLength = 50;
+
     public string Name { get; init; } = string.Empty;
     public string AddressLine { get; init; } = string.Empty;
     public string Phone { get; init; } = string.Empty;
+
+    /// <summary>Bounded validation shared by configuration startup validation.</summary>
+    public bool IsValid() =>
+        !string.IsNullOrWhiteSpace(Name) && Name.Length <= MaxNameLength &&
+        !string.IsNullOrWhiteSpace(AddressLine) && AddressLine.Length <= MaxAddressLineLength &&
+        !string.IsNullOrWhiteSpace(Phone) && Phone.Length <= MaxPhoneLength;
+
+    /// <summary>
+    /// Recognizes the shipped development placeholders so production startup can refuse them.
+    /// Development/test deliberately use these clearly-synthetic values.
+    /// </summary>
+    public static bool IsSyntheticPlaceholder(PrintClinicDetails clinic) =>
+        clinic.Name.Contains("configure ", StringComparison.OrdinalIgnoreCase) ||
+        clinic.Name.StartsWith("Synthetic Clinic", StringComparison.OrdinalIgnoreCase) ||
+        clinic.AddressLine.Contains("configure ", StringComparison.OrdinalIgnoreCase) ||
+        clinic.Phone.Contains("configure ", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>Stored prescription data required for printing, assembled by Infrastructure.</summary>
@@ -116,9 +140,6 @@ public sealed class PrescriptionPrintService(
     IPrescriptionPdfRenderer renderer,
     PrintClinicDetails clinic)
 {
-    /// <summary>Upper bound on rendered document size (data is otherwise domain-bounded).</summary>
-    public const int MaxPrintableItems = 200;
-
     public async Task<PrescriptionPdfResult> GetPdfAsync(
         Guid patientId, Guid prescriptionId, PrintLanguage language, CancellationToken ct = default)
     {
@@ -128,7 +149,10 @@ public sealed class PrescriptionPrintService(
         // Only clinically immutable prescriptions are printable; Draft and Cancelled never are.
         if (projection.Status is not (PrescriptionStatus.Finalized or PrescriptionStatus.Released))
             return PrescriptionPdfResult.Failure(PrescriptionError.NotPrintable);
-        if (projection.Items.Count > MaxPrintableItems)
+        // Defensive reuse of the single authoritative domain limit: the domain already refuses
+        // over-limit items at creation, so this rejection is unreachable via application paths
+        // and exists only for privileged direct writes.
+        if (projection.Items.Count > Prescription.MaxItemCount)
             return PrescriptionPdfResult.Failure(PrescriptionError.InvalidInput);
 
         var view = new PrescriptionPrintView(

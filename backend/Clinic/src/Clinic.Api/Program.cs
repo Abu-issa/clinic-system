@@ -29,12 +29,26 @@ builder.Services.AddOptions<BookingPolicySettings>()
     .Validate(settings => settings.IsValid(), "Invalid booking policy durations, interval, notice, or horizon.")
     .ValidateOnStart();
 // Printable clinic display details contain no secrets; real values are configured per deployment.
+// Development/test deliberately use the shipped clearly-synthetic placeholders; production
+// startup refuses them so a real clinic identity decision is unavoidable.
+var isProduction = builder.Environment.IsProduction();
 builder.Services.AddOptions<PrintClinicDetails>()
     .BindConfiguration("ClinicDisplay")
-    .Validate(clinic => !string.IsNullOrWhiteSpace(clinic.Name) && !string.IsNullOrWhiteSpace(clinic.Phone),
-        "Clinic display name and phone are required for printable prescriptions.")
+    .Validate(clinic => clinic.IsValid(),
+        "Clinic display name, address, and phone are required and must stay within documented length bounds for printable prescriptions.")
+    .Validate(clinic => !isProduction || !PrintClinicDetails.IsSyntheticPlaceholder(clinic),
+        "Production cannot start with the shipped synthetic clinic display values; configure the real clinic identity for printable prescriptions.")
     .ValidateOnStart();
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<PrintClinicDetails>>().Value);
+// QuestPDF license selection is an explicit deployment decision (QuestPDF.Settings.License is
+// the only supported mechanism): Community, Professional, or Enterprise. Nothing is inherited
+// silently; the value must be configured for every environment before PDF rendering exists.
+builder.Services.AddOptions<PrintLicenseOptions>()
+    .BindConfiguration(PrintLicenseOptions.SectionName)
+    .Validate(PrintLicenseOptions.IsConfigured,
+        $"PrintLicensing:PdfLicenseType is required and must be one of: {PrintLicenseOptions.AllowedValues}.")
+    .ValidateOnStart();
+builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<PrintLicenseOptions>>().Value);
 builder.Services.AddSingleton(provider => new BookingPolicy(
     provider.GetRequiredService<IOptions<BookingPolicySettings>>().Value,
     provider.GetRequiredService<TimeZoneInfo>()));
@@ -94,7 +108,8 @@ builder.Services.AddScoped<MedicationCatalogService>();
 builder.Services.AddScoped<IPrescriptionStore, PrescriptionStore>();
 builder.Services.AddScoped<PrescriptionService>();
 builder.Services.AddScoped<IPrescriptionPrintStore, PrescriptionPrintStore>();
-builder.Services.AddSingleton<IPrescriptionPdfRenderer, QuestPdfPrescriptionRenderer>();
+builder.Services.AddSingleton<IPrescriptionPdfRenderer>(sp =>
+    new QuestPdfPrescriptionRenderer(sp.GetRequiredService<PrintLicenseOptions>()));
 builder.Services.AddScoped<PrescriptionPrintService>();
 builder.Services.AddScoped<StaffCookieEvents>();
 builder.Services.AddAuthentication("ClinicStaff")

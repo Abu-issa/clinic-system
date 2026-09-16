@@ -472,6 +472,84 @@ public sealed class StaffPrescriptionsHttpTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, (await intermediate.GetAsync(url)).StatusCode);
     }
 
+    [Fact]
+    public async Task PrescriptionAtExactlyTheMaximumItemCountRemainsFinalizableAndPrintable()
+    {
+        using var client = await EnrolledClient(DoctorName);
+        var medicationId = await SeedMedicationAsync("PdfMaxItems");
+        var visitId = await SeedVisitAsync();
+        var draft = await CreateDraft(client, visitId);
+        var prescriptionId = draft.GetProperty("id").GetGuid();
+
+        // Reach exactly the domain maximum through the supported aggregate path in one save.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClinicDbContext>();
+            var medication = await db.Medications.SingleAsync(x => x.Id == medicationId);
+            var prescription = await db.Set<Prescription>().Include(x => x.Items)
+                .SingleAsync(x => x.Id == prescriptionId);
+            for (var i = 0; i < Prescription.MaxItemCount; i++)
+                prescription.AddItem(medication, "1 tablet", "twice daily", "7 days", null, i, "seed", DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync();
+        }
+
+        var current = await client.GetAsync($"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}");
+        Assert.Equal(Prescription.MaxItemCount, (await Json(current)).GetProperty("items").GetArrayLength());
+
+        var finalized = await client.PostAsJsonAsync(
+            $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/finalize",
+            new { ExpectedRowVersion = (await Json(current)).GetProperty("rowVersion").GetString() });
+        Assert.Equal(HttpStatusCode.OK, finalized.StatusCode);
+
+        var pdf = await client.GetAsync(
+            $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/pdf?language=en");
+        Assert.Equal(HttpStatusCode.OK, pdf.StatusCode);
+        var bytes = await pdf.Content.ReadAsByteArrayAsync();
+        Assert.Equal(0x25, bytes[0]);
+        // Far larger than the ~8-12KB one-item document: all 200 rows were rendered.
+        Assert.True(bytes.Length > 20_000, $"Unexpectedly small document: {bytes.Length} bytes.");
+    }
+
+    [Fact]
+    public async Task AddingOneItemOverTheMaximumIsRejectedWithoutPartialState()
+    {
+        using var client = await EnrolledClient(DoctorName);
+        var medicationId = await SeedMedicationAsync("PdfOverMax");
+        var visitId = await SeedVisitAsync();
+        var draft = await CreateDraft(client, visitId);
+        var prescriptionId = draft.GetProperty("id").GetGuid();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClinicDbContext>();
+            var medication = await db.Medications.SingleAsync(x => x.Id == medicationId);
+            var prescription = await db.Set<Prescription>().Include(x => x.Items)
+                .SingleAsync(x => x.Id == prescriptionId);
+            for (var i = 0; i < Prescription.MaxItemCount; i++)
+                prescription.AddItem(medication, "1 tablet", "twice daily", "7 days", null, i, "seed", DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync();
+        }
+
+        var before = await client.GetAsync($"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}");
+        var beforeDetails = await Json(before);
+        var versionBefore = beforeDetails.GetProperty("rowVersion").GetString();
+
+        var rejected = await client.PostAsJsonAsync(
+            $"/api/staff/patients/{_patientId}/prescriptions/{prescriptionId}/items",
+            new { MedicationId = medicationId, Dose = "1 tablet", Frequency = "twice daily", Duration = "7 days",
+                  ExpectedRowVersion = versionBefore });
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+        Assert.Equal("invalid_input", (await Json(rejected)).GetProperty("code").GetString());
+
+        // Nothing leaked: same item count, same rowversion, still Draft.
+        await using var verify = _database.CreateContext();
+        var persisted = await verify.Set<Prescription>().Include(x => x.Items)
+            .SingleAsync(x => x.Id == prescriptionId);
+        Assert.Equal(Prescription.MaxItemCount, persisted.Items.Count);
+        Assert.Equal(PrescriptionStatus.Draft, persisted.Status);
+        Assert.Equal(versionBefore, Convert.ToBase64String(persisted.RowVersion));
+    }
+
     // ---------------- Security ----------------
 
     [Fact]

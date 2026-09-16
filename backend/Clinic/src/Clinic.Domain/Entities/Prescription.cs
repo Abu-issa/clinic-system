@@ -10,6 +10,14 @@ public sealed class Prescription
 {
     private readonly List<PrescriptionItem> _items = [];
 
+    /// <summary>
+    /// Authoritative maximum number of items a prescription may carry. Enforced at item addition
+    /// so no application-supported path can produce a Finalized/Released prescription that the
+    /// print pipeline (which reuses this same limit defensively) cannot represent. Direct
+    /// privileged SQL writes remain outside the application guarantee.
+    /// </summary>
+    public const int MaxItemCount = 200;
+
     public Guid Id { get; private set; }
 
     /// <summary>The Visit encounter this prescription belongs to.</summary>
@@ -132,6 +140,9 @@ public sealed class Prescription
         EnsureDraft();
         ArgumentNullException.ThrowIfNull(medication);
 
+        if (_items.Count >= MaxItemCount)
+            throw new ArgumentException(
+                $"A prescription cannot contain more than {MaxItemCount} items.", nameof(displayOrder));
         if (!medication.IsActive)
             throw new InvalidOperationException("Cannot add inactive medication to prescription.");
 

@@ -8,12 +8,31 @@ using QuestPDF.Infrastructure;
 namespace Clinic.Infrastructure.Printing;
 
 /// <summary>
-/// Renders the printable prescription with QuestPDF (Community license) using only reproducibly
-/// bundled Noto fonts (SIL OFL 1.1, embedding permitted; license text shipped alongside).
-/// Arabic rendering uses RTL content direction and the Arabic font; registered fonts act as the
-/// fallback pool for Latin text inside Arabic documents. Document metadata is derived from the
-/// prescription data, not from wall-clock time, so identical data renders identical bytes.
-/// No HTML/markup interpretation exists: all content is drawn as literal text.
+/// Explicit, operator-owned QuestPDF license selection (QuestPDF.Settings.License is the only
+/// supported configuration mechanism). The value must name Community, Professional, or
+/// Enterprise: startup validation and this renderer both refuse anything else, so production
+/// can never silently self-certify eligibility. No license key or activation secret exists in
+/// this repository; see docs/medications-prescriptions-phase-3.md for the verified terms.
+/// </summary>
+public sealed class PrintLicenseOptions
+{
+    public const string SectionName = "PrintLicensing";
+    public const string AllowedValues = "Community, Professional, Enterprise";
+
+    public string PdfLicenseType { get; init; } = string.Empty;
+
+    public static bool IsConfigured(PrintLicenseOptions options) =>
+        Enum.TryParse<LicenseType>(options.PdfLicenseType, ignoreCase: true, out var license) &&
+        license is LicenseType.Community or LicenseType.Professional or LicenseType.Enterprise;
+}
+
+/// <summary>
+/// Renders the printable prescription with QuestPDF (license selected by configuration) using
+/// only reproducibly bundled Noto fonts (SIL OFL 1.1, embedding permitted; license text shipped
+/// alongside). Arabic rendering uses RTL content direction and the Arabic font; registered
+/// fonts act as the fallback pool for Latin text inside Arabic documents. Document metadata is
+/// derived from the prescription data, not from wall-clock time, so identical data renders
+/// identical bytes. No HTML/markup interpretation exists: all content is drawn as literal text.
 /// </summary>
 public sealed class QuestPdfPrescriptionRenderer : IPrescriptionPdfRenderer
 {
@@ -22,13 +41,16 @@ public sealed class QuestPdfPrescriptionRenderer : IPrescriptionPdfRenderer
     private static readonly object InitializationLock = new();
     private static bool _initialized;
 
-    public QuestPdfPrescriptionRenderer()
+    public QuestPdfPrescriptionRenderer(PrintLicenseOptions licenseOptions)
     {
         lock (InitializationLock)
         {
             if (_initialized)
                 return;
-            QuestPDF.Settings.License = LicenseType.Community;
+            if (!PrintLicenseOptions.IsConfigured(licenseOptions))
+                throw new InvalidOperationException(
+                    $"{PrintLicenseOptions.SectionName}:PdfLicenseType must be configured as one of: {PrintLicenseOptions.AllowedValues}.");
+            QuestPDF.Settings.License = Enum.Parse<LicenseType>(licenseOptions.PdfLicenseType, ignoreCase: true);
             QuestPDF.Settings.UseSystemFonts = false;
             QuestPDF.Settings.ThrowOnMissingTextGlyphs = true;
             RegisterFont("Clinic.Infrastructure.Fonts.NotoSansArabic-Regular.ttf");

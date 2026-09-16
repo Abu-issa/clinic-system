@@ -24,6 +24,10 @@ public sealed class ErrorHandlingApiFactory :
         builder.UseSetting(
             "ConnectionStrings:ClinicDb",
             _database.ConnectionString);
+        builder.UseSetting("PrintLicensing:PdfLicenseType", "Community");
+        builder.UseSetting("ClinicDisplay:Name", "Integration Test Clinic");
+        builder.UseSetting("ClinicDisplay:AddressLine", "Integration Test Address");
+        builder.UseSetting("ClinicDisplay:Phone", "+962 0 000 0000");
 
         builder.ConfigureTestServices(services =>
         {
