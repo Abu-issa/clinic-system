@@ -1,4 +1,5 @@
 using Clinic.Application.Audit;
+using Clinic.Api.Audit;
 using Clinic.Application.Patients;
 using Clinic.Application.Visits;
 using Clinic.Application.Medications;
@@ -116,6 +117,9 @@ builder.Services.AddScoped<PrescriptionPrintService>();
 // Both audit writers share the scoped ClinicDbContext; mutations use their business save/transaction.
 builder.Services.AddScoped<IAuditEventWriter, AuditEventStore>();
 builder.Services.AddScoped<IAuditMutationWriter, AuditEventStore>();
+builder.Services.AddScoped<IAccessAuditWriter, AccessAuditWriter>();
+builder.Services.AddScoped<IAuditQueryStore, AuditQueryStore>();
+builder.Services.AddScoped<HttpAccessAudit>();
 builder.Services.AddScoped<StaffCookieEvents>();
 builder.Services.AddAuthentication("ClinicStaff")
     .AddCookie("ClinicStaff", options => ConfigureCookie(options, "__Host-Clinic.Staff", 30))
@@ -137,6 +141,9 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddAuthorization(options =>
 {
+    options.AddPolicy("AuditRead", policy => policy.RequireAuthenticatedUser().RequireClaim("amr", "mfa")
+        .RequireRole("Doctor").RequireAssertion(context => context.User.HasClaim("permission", "audit.patient.read") ||
+            context.User.HasClaim("permission", "audit.admin.read")));
     void PatientPolicy(string name, string permission, string[] roles, bool scoped = true)
     {
         options.AddPolicy(name, policy => {
@@ -283,7 +290,8 @@ app.UseHttpsRedirection();
 app.Use(async (context, next) =>
 {
     if (context.Request.Path.StartsWithSegments("/api/staff/auth") || context.Request.Path.StartsWithSegments("/api/staff/patients")
-        || context.Request.Path.StartsWithSegments("/api/staff/medications"))
+        || context.Request.Path.StartsWithSegments("/api/staff/medications")
+        || context.Request.Path.StartsWithSegments("/api/staff/audit-events"))
         context.Response.Headers.CacheControl = "no-store";
     await next();
 });

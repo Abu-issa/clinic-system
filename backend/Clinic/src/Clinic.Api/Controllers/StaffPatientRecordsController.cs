@@ -1,4 +1,5 @@
 using Clinic.Application.Patients;
+using Clinic.Api.Audit;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,7 @@ namespace Clinic.Api.Controllers;
 [Authorize(Policy = "StaffSession")]
 [RequestSizeLimit(131072)]
 public sealed class StaffPatientRecordsController(PatientRecordsService service, IAuthorizationService authorization,
-    IAntiforgery antiforgery) : ControllerBase
+    IAntiforgery antiforgery, HttpAccessAudit audit) : ControllerBase
 {
     [HttpPost]
     [Authorize(Policy = "PatientCreate")]
@@ -24,7 +25,10 @@ public sealed class StaffPatientRecordsController(PatientRecordsService service,
     public async Task<IResult> Get(Guid patientId, CancellationToken ct)
     {
         if (!await Allowed(patientId, "PatientAdminRead")) return Results.Forbid();
-        return Admin(await service.GetAsync(patientId, ct));
+        var result = await service.GetAsync(patientId, ct);
+        if (!result.IsSuccess) return Admin(result);
+        return await audit.RecordAsync(HttpContext, "patient.record.read", "patient", patientId.ToString("N"), patientId)
+            ?? Admin(result);
     }
 
     [HttpPut("{patientId:guid}")]
@@ -39,7 +43,10 @@ public sealed class StaffPatientRecordsController(PatientRecordsService service,
     public async Task<IResult> GetProfile(Guid patientId, CancellationToken ct)
     {
         if (!await Allowed(patientId, "PatientClinicalRead")) return Results.Forbid();
-        return Clinical(await service.GetProfileAsync(patientId, ct));
+        var result = await service.GetProfileAsync(patientId, ct);
+        if (!result.IsSuccess) return Clinical(result);
+        return await audit.RecordAsync(HttpContext, "patient.clinical-profile.read", "patient", patientId.ToString("N"), patientId)
+            ?? Clinical(result);
     }
 
     [HttpPut("{patientId:guid}/medical-profile")]

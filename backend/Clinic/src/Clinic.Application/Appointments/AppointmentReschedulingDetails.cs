@@ -9,4 +9,5 @@ public sealed record AppointmentReschedulingDetails(
     DateTimeOffset EndsAtUtc,
     AppointmentStatus Status,
     byte[] RowVersion,
-    AppointmentType? AppointmentType);
+    AppointmentType? AppointmentType,
+    [property: System.Text.Json.Serialization.JsonIgnore] Guid PatientId = default);

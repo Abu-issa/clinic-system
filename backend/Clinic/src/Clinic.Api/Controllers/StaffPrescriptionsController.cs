@@ -1,4 +1,5 @@
 using Clinic.Api.Prescriptions;
+using Clinic.Api.Audit;
 using Clinic.Application.Prescriptions;
 using Clinic.Application.Visits;
 using Clinic.Domain.Entities;
@@ -27,7 +28,7 @@ public sealed class StaffPrescriptionsController(
     VisitService visits,
     IAuthorizationService authorization,
     IAntiforgery antiforgery,
-    UserManager<StaffUser> users) : ControllerBase
+    UserManager<StaffUser> users, HttpAccessAudit audit) : ControllerBase
 {
     [HttpPost("visits/{visitId:guid}/prescriptions")]
     public async Task<IResult> Create(Guid patientId, Guid visitId, [FromBody] CreatePrescriptionBody body, CancellationToken ct)
@@ -55,9 +56,10 @@ public sealed class StaffPrescriptionsController(
         var visit = await visits.GetAsync(patientId, visitId, ct);
         if (!visit.IsSuccess) return Error(404, "visit_not_found", "The prescription request could not be completed.");
         var result = await service.ListByVisitAsync(patientId, visitId, ct);
-        return result.IsSuccess
-            ? Results.Ok(result.Prescriptions.Select(MapListItem).ToArray())
-            : MapError(result.Error, "The prescription request could not be completed.");
+        if (!result.IsSuccess) return MapError(result.Error, "The prescription request could not be completed.");
+        var projection = result.Prescriptions.Select(MapListItem).ToArray();
+        return await audit.RecordAsync(HttpContext, "patient.prescriptions.read", "patient", patientId.ToString("N"), patientId)
+            ?? Results.Ok(projection);
     }
 
     [HttpGet("prescriptions")]
@@ -65,9 +67,10 @@ public sealed class StaffPrescriptionsController(
     {
         if (!await Allowed(patientId, "PrescriptionRead")) return Results.Forbid();
         var result = await service.ListByPatientAsync(patientId, skip, take, ct);
-        return result.IsSuccess
-            ? Results.Ok(result.Prescriptions.Select(MapListItem).ToArray())
-            : MapError(result.Error, "The prescription request could not be completed.");
+        if (!result.IsSuccess) return MapError(result.Error, "The prescription request could not be completed.");
+        var projection = result.Prescriptions.Select(MapListItem).ToArray();
+        return await audit.RecordAsync(HttpContext, "patient.prescriptions.read", "patient", patientId.ToString("N"), patientId)
+            ?? Results.Ok(projection);
     }
 
     [HttpGet("prescriptions/{prescriptionId:guid}")]
@@ -75,9 +78,10 @@ public sealed class StaffPrescriptionsController(
     {
         if (!await Allowed(patientId, "PrescriptionRead")) return Results.Forbid();
         var result = await service.GetAsync(patientId, prescriptionId, ct);
-        return result.IsSuccess
-            ? Results.Ok(Map(result.Details!))
-            : MapError(result.Error, "The prescription request could not be completed.");
+        if (!result.IsSuccess) return MapError(result.Error, "The prescription request could not be completed.");
+        var projection = Map(result.Details!);
+        return await audit.RecordAsync(HttpContext, "prescription.read", "prescription", prescriptionId.ToString("N"), patientId)
+            ?? Results.Ok(projection);
     }
 
     /// <summary>
@@ -110,6 +114,10 @@ public sealed class StaffPrescriptionsController(
                     "The prescription request could not be completed."),
                 _ => Error(400, "invalid_input", "The prescription request could not be completed.")
             };
+
+        var failure = await audit.RecordAsync(HttpContext, "prescription.pdf.download", "prescription",
+            prescriptionId.ToString("N"), patientId, [new("language", language!)]);
+        if (failure is not null) return failure;
 
         // The filename is derived from the route prescription id and the whitelisted language
         // token only: no patient name, MRN, or caller-controlled header content.

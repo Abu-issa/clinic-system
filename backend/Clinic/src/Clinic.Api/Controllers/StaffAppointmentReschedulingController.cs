@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Clinic.Api.Audit;
 using Clinic.Api.Appointments;
 using Clinic.Application.Appointments;
 using Microsoft.AspNetCore.Antiforgery;
@@ -16,7 +17,7 @@ public sealed class StaffAppointmentReschedulingController(
     AppointmentReschedulingService service,
     IAuthorizationService authorization,
     IAntiforgery antiforgery,
-    AppointmentAvailabilityService availability) : ControllerBase
+    AppointmentAvailabilityService availability, HttpAccessAudit audit) : ControllerBase
 {
     [HttpGet("availability")]
     [EndpointSummary("Read advisory rescheduling slots using the stored appointment duration")]
@@ -46,9 +47,9 @@ public sealed class StaffAppointmentReschedulingController(
         }
 
         var details = await service.GetAsync(appointmentId, doctorId, cancellationToken);
-        return details is null
-            ? Failure(404, "Appointment was not found.", "appointment_not_found")
-            : Results.Ok(details);
+        if (details is null) return Failure(404, "Appointment was not found.", "appointment_not_found");
+        return await audit.RecordAsync(HttpContext, "appointment.read", "appointment", appointmentId.ToString("N"), details.PatientId)
+            ?? Results.Ok(details);
     }
 
     [HttpPost]

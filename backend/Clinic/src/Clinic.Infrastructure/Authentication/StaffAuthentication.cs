@@ -15,7 +15,7 @@ public sealed class StaffAuthentication(ClinicDbContext db, UserManager<StaffUse
     public const string EnrollmentClaim = "staff_enrollment";
     public static readonly string[] Roles = ["Doctor", "Receptionist", "DoctorAssistant"];
     public static readonly string[] InitialPermissions = ["appointments.availability", "appointments.reschedule", "appointments.cancel", "schedule.manage"];
-    public static readonly string[] Permissions = [.. InitialPermissions, "patients.admin.read", "patients.admin.write", "patients.clinical.read", "patients.clinical.write", "visits.read", "visits.write", "visits.finalize", "visits.amend", "vitals.write", "medications.read", "medications.manage", "prescriptions.read", "prescriptions.write", "prescriptions.finalize", "prescriptions.release", "prescriptions.cancel"];
+    public static readonly string[] Permissions = [.. InitialPermissions, "patients.admin.read", "patients.admin.write", "patients.clinical.read", "patients.clinical.write", "visits.read", "visits.write", "visits.finalize", "visits.amend", "vitals.write", "medications.read", "medications.manage", "prescriptions.read", "prescriptions.write", "prescriptions.finalize", "prescriptions.release", "prescriptions.cancel", "audit.patient.read", "audit.admin.read"];
     private static readonly StaffUser DummyUser = new();
     private static readonly PasswordHasher<StaffUser> DummyHasher = new();
     private static readonly string DummyHash = DummyHasher.HashPassword(DummyUser, Guid.NewGuid().ToString());

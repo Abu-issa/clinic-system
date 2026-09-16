@@ -212,7 +212,7 @@ public sealed class AppointmentReschedulingService
 
         return appointment is null ? null : new AppointmentReschedulingDetails(
             appointment.Id, appointment.DoctorId, appointment.StartsAtUtc,
-            appointment.EndsAtUtc, appointment.Status, appointment.RowVersion.ToArray(), appointment.Type);
+            appointment.EndsAtUtc, appointment.Status, appointment.RowVersion.ToArray(), appointment.Type, appointment.PatientId);
     }
 
     private static ReschedulingError MapPolicyError(BookingError error) => error switch

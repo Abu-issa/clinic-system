@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Clinic.Api.Audit;
 using System.Security.Claims;
 using Clinic.Application.Abstractions;
 using Microsoft.AspNetCore.Antiforgery;
@@ -17,7 +18,7 @@ public sealed record StaffCodeBody([Required, StringLength(100)] string Code);
 [Route("api/staff/auth")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 [EnableRateLimiting("staff-auth")]
-public sealed class StaffAuthenticationController(IStaffAuthentication auth, IAntiforgery csrf) : Controller
+public sealed class StaffAuthenticationController(IStaffAuthentication auth, IAntiforgery csrf, HttpAccessAudit audit) : Controller
 {
     public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
@@ -45,6 +46,7 @@ public sealed class StaffAuthenticationController(IStaffAuthentication auth, IAn
     {
         var result = await auth.PasswordAsync(body.UserName, body.Password);
         if (result is null) return Failure();
+        await audit.SecurityAsync(HttpContext, result.Principal, "staff.password.accepted");
         await HttpContext.SignOutAsync("ClinicStaff");
         await HttpContext.SignInAsync("ClinicStaffIntermediate", result.Principal, new AuthenticationProperties { IsPersistent = false });
         return Ok(new { next = result.Enrollment ? "enrollment" : "totp", csrfToken = RefreshCsrf(result.Principal) });
@@ -55,6 +57,7 @@ public sealed class StaffAuthenticationController(IStaffAuthentication auth, IAn
     {
         var intermediate = await HttpContext.AuthenticateAsync("ClinicStaffIntermediate");
         var setup = intermediate.Succeeded ? await auth.SetupAsync(intermediate.Principal!) : null;
+        if (setup is not null) await audit.SecurityAsync(HttpContext, intermediate.Principal!, "staff.enrollment.setup");
         return setup is null ? Failure() : Ok(setup);
     }
 
@@ -70,6 +73,8 @@ public sealed class StaffAuthenticationController(IStaffAuthentication auth, IAn
         var intermediate = await HttpContext.AuthenticateAsync("ClinicStaffIntermediate");
         var result = intermediate.Succeeded ? await auth.VerifyAsync(intermediate.Principal!, body.Code, recovery, enrollment) : null;
         if (result is null) return Failure();
+        await audit.SecurityAsync(HttpContext, result.Principal, enrollment ? "staff.enrollment.completed" :
+            recovery ? "staff.recovery.login" : "staff.mfa.completed");
         await HttpContext.SignOutAsync("ClinicStaffIntermediate");
         await HttpContext.SignInAsync("ClinicStaff", result.Principal, new AuthenticationProperties { IsPersistent = false });
         var token = RefreshCsrf(result.Principal);
@@ -84,7 +89,11 @@ public sealed class StaffAuthenticationController(IStaffAuthentication auth, IAn
     public async Task<IActionResult> Logout()
     {
         // Revokes all account sessions, also making captured logout cookies unusable.
-        if (User.Identity?.IsAuthenticated == true) await auth.RevokeAsync(User);
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            await auth.RevokeAsync(User);
+            await audit.SecurityAsync(HttpContext, User, "staff.logout");
+        }
         await ClearCookies();
         return Ok(new { csrfToken = RefreshCsrf(new ClaimsPrincipal(new ClaimsIdentity())) });
     }
@@ -94,6 +103,7 @@ public sealed class StaffAuthenticationController(IStaffAuthentication auth, IAn
     public async Task<IActionResult> Revoke()
     {
         await auth.RevokeAsync(User);
+        await audit.SecurityAsync(HttpContext, User, "staff.sessions-revoke");
         await ClearCookies();
         return Ok(new { csrfToken = RefreshCsrf(new ClaimsPrincipal(new ClaimsIdentity())) });
     }

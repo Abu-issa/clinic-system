@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Clinic.Api.Audit;
 using Clinic.Api.Visits;
 using Clinic.Application.Visits;
 using Clinic.Domain.Entities;
@@ -18,7 +19,7 @@ public sealed class StaffVisitsController(
     VisitService service,
     IAuthorizationService authorization,
     IAntiforgery antiforgery,
-    UserManager<StaffUser> users) : ControllerBase
+    UserManager<StaffUser> users, HttpAccessAudit audit) : ControllerBase
 {
     [HttpPost]
     public async Task<IResult> Create(Guid patientId, [FromBody] CreateVisitBody body, CancellationToken ct)
@@ -46,9 +47,10 @@ public sealed class StaffVisitsController(
     {
         if (!await Allowed(patientId, "VisitRead")) return Results.Forbid();
         var result = await service.ListAsync(patientId, skip, take, ct);
-        return result.IsSuccess
-            ? Results.Ok(result.Visits.Select(v => new VisitListItemResponse(v.Id, v.PatientId, v.DoctorId, v.AppointmentId, v.OccurredAtUtc, v.Status)).ToArray())
-            : MapError(result.Error);
+        if (!result.IsSuccess) return MapError(result.Error);
+        var projection = result.Visits.Select(v => new VisitListItemResponse(v.Id, v.PatientId, v.DoctorId, v.AppointmentId, v.OccurredAtUtc, v.Status)).ToArray();
+        return await audit.RecordAsync(HttpContext, "patient.visits.read", "patient", patientId.ToString("N"), patientId)
+            ?? Results.Ok(projection);
     }
 
     [HttpGet("{visitId:guid}")]
@@ -56,7 +58,10 @@ public sealed class StaffVisitsController(
     {
         if (!await Allowed(patientId, "VisitRead")) return Results.Forbid();
         var result = await service.GetAsync(patientId, visitId, ct);
-        return result.IsSuccess ? Results.Ok(Map(result.Details!)) : MapError(result.Error);
+        if (!result.IsSuccess) return MapError(result.Error);
+        var projection = Map(result.Details!);
+        return await audit.RecordAsync(HttpContext, "visit.read", "visit", visitId.ToString("N"), patientId)
+            ?? Results.Ok(projection);
     }
 
     [HttpPut("{visitId:guid}")]
