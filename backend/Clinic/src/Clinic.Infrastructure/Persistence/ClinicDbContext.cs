@@ -24,6 +24,7 @@ public sealed class ClinicDbContext : Microsoft.AspNetCore.Identity.EntityFramew
     public DbSet<AppointmentReschedule> AppointmentReschedules =>
     Set<AppointmentReschedule>();
     public DbSet<Medication> Medications => Set<Medication>();
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -31,6 +32,7 @@ public sealed class ClinicDbContext : Microsoft.AspNetCore.Identity.EntityFramew
         VisitMapping.Configure(modelBuilder);
         MedicationCatalogMapping.Configure(modelBuilder);
         PrescriptionMapping.Configure(modelBuilder);
+        AuditMapping.Configure(modelBuilder);
 
         modelBuilder.Entity<Patient>(patient =>
         {
@@ -242,9 +244,23 @@ public sealed class ClinicDbContext : Microsoft.AspNetCore.Identity.EntityFramew
             });
         });
     }
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        EnsureAuditEventsAreAppendOnly();
+        try
+        {
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new PersistenceConcurrencyException(exception);
+        }
+    }
+
     public override async Task<int> SaveChangesAsync(
     CancellationToken cancellationToken = default)
     {
+        EnsureAuditEventsAreAppendOnly();
         try
         {
             return await base.SaveChangesAsync(cancellationToken);
@@ -253,6 +269,34 @@ public sealed class ClinicDbContext : Microsoft.AspNetCore.Identity.EntityFramew
         {
             throw new PersistenceConcurrencyException(exception);
         }
+    }
+
+    public override async Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+    {
+        EnsureAuditEventsAreAppendOnly();
+        try
+        {
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new PersistenceConcurrencyException(exception);
+        }
+    }
+
+    // Append-only guarantee: application code can add audit events but never update or delete
+    // them. Every public save path (SaveChanges(), SaveChanges(bool), SaveChangesAsync(ct),
+    // SaveChangesAsync(bool, ct)) funnels through these guarded overloads; direct privileged
+    // SQL writes remain outside this guarantee.
+    private void EnsureAuditEventsAreAppendOnly()
+    {
+        var violatingAuditEntries = ChangeTracker.Entries<AuditEvent>()
+            .Where(entry => entry.State is EntityState.Modified or EntityState.Deleted)
+            .ToList();
+        if (violatingAuditEntries.Count > 0)
+            throw new InvalidOperationException(
+                "AuditEvent rows are append-only: modification and deletion through the application are rejected.");
     }
 
 }

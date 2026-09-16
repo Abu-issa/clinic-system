@@ -1,7 +1,9 @@
+using Clinic.Application.Audit;
 using Clinic.Application.Patients;
 using Clinic.Application.Visits;
 using Clinic.Application.Medications;
 using Clinic.Application.Prescriptions;
+using Clinic.Infrastructure.Audit;
 using Clinic.Infrastructure.Authentication;
 using Clinic.Infrastructure.Printing;
 using Clinic.Api.Authentication;
@@ -111,6 +113,8 @@ builder.Services.AddScoped<IPrescriptionPrintStore, PrescriptionPrintStore>();
 builder.Services.AddSingleton<IPrescriptionPdfRenderer>(sp =>
     new QuestPdfPrescriptionRenderer(sp.GetRequiredService<PrintLicenseOptions>()));
 builder.Services.AddScoped<PrescriptionPrintService>();
+// Audit foundation only: no feature writes audit events yet (integration is a later phase).
+builder.Services.AddScoped<IAuditEventWriter, AuditEventStore>();
 builder.Services.AddScoped<StaffCookieEvents>();
 builder.Services.AddAuthentication("ClinicStaff")
     .AddCookie("ClinicStaff", options => ConfigureCookie(options, "__Host-Clinic.Staff", 30))
