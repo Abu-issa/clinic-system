@@ -1,6 +1,7 @@
 using Clinic.Application.Patients;
 using Clinic.Domain.Entities;
 using Clinic.Domain.Enums;
+using Clinic.Infrastructure.Audit;
 using Clinic.Infrastructure.Persistence;
 using Clinic.Infrastructure.Repositories;
 using Clinic.IntegrationTests.Infrastructure;
@@ -14,7 +15,7 @@ public sealed class PatientRecordsReviewTests : IClassFixture<SqlDatabaseFixture
     private readonly SqlDatabaseFixture database;
     public PatientRecordsReviewTests(SqlDatabaseFixture database) => this.database = database;
     private static CreatePatientRequest Patient(string mrn) => new("Synthetic review", "shared", null, mrn, null, null, null, null, null);
-    private static PatientRecordsService Service(ClinicDbContext db) => new(new PatientRecordsStore(db), TimeProvider.System);
+    private static PatientRecordsService Service(ClinicDbContext db) => new(new PatientRecordsStore(db), TimeProvider.System, new AuditEventStore(db, TimeProvider.System));
 
     [Fact]
     public async Task Review_IncompleteCurrentSnapshotMustNotSupersedeVerifiedEntries()
@@ -39,7 +40,7 @@ public sealed class PatientRecordsReviewTests : IClassFixture<SqlDatabaseFixture
         var mrn = Guid.NewGuid().ToString("N");
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Service(db).CreateAsync(Patient(mrn), cancellation.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Service(db).CreateAsync(Patient(mrn), actor: null, ct: cancellation.Token));
         await db.SaveChangesAsync();
         Assert.False(await db.Patients.AnyAsync(x => x.MedicalRecordNumber == mrn));
     }
@@ -136,9 +137,9 @@ public sealed class PatientRecordsReviewTests : IClassFixture<SqlDatabaseFixture
         await new PatientRecordsStore(a).PatientAsync(id, default);
         await new PatientRecordsStore(b).PatientAsync(id, default);
         var request = new UpdatePatientRequest("Synthetic winner", "shared", null, null, null, null, version);
-        var winner = await Service(a).UpdateAsync(id, request);
+        var winner = await Service(a).UpdateAsync(id, request, actor: null);
         Assert.True(winner.IsSuccess);
-        Assert.Equal(PatientAdminError.PatientChanged, (await Service(b).UpdateAsync(id, request with { FullName = "Synthetic loser" })).Error);
+        Assert.Equal(PatientAdminError.PatientChanged, (await Service(b).UpdateAsync(id, request with { FullName = "Synthetic loser" }, actor: null)).Error);
         await b.SaveChangesAsync();
         await using var verify = database.CreateContext();
         var saved = await verify.Patients.SingleAsync(x => x.Id == id);

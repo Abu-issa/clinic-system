@@ -1,4 +1,5 @@
 using Clinic.Application.Schedules;
+using Clinic.Infrastructure.Audit;
 using Clinic.Domain.Entities;
 using Clinic.Domain.Enums;
 using Clinic.Infrastructure.Persistence;
@@ -210,7 +211,8 @@ public sealed class DoctorDayClosureServiceTests :
                 new WorkingScheduleRepository(
                     context,
                     TestWorkingHours.ClinicTimeZone),
-                TimeProvider.System, TestWorkingHours.Policy);
+                TimeProvider.System, TestWorkingHours.Policy,
+                new AuditEventStore(context, TimeProvider.System));
 
             await startGate.Task.WaitAsync(token);
 
@@ -220,6 +222,7 @@ public sealed class DoctorDayClosureServiceTests :
                     doctor.Id,
                     startsAtUtc,
             Clinic.Domain.Enums.AppointmentType.Consultation),
+                actor: null,
                 token);
         }
 

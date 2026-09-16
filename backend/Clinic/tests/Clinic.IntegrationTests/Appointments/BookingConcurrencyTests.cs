@@ -1,4 +1,5 @@
 using Clinic.Application.Appointments;
+using Clinic.Infrastructure.Audit;
 using Clinic.Domain.Entities;
 using Clinic.Infrastructure.Persistence;
 using Clinic.Infrastructure.Repositories;
@@ -292,7 +293,7 @@ public sealed class BookingConcurrencyTests :
 
         await startSignal.WaitAsync(cancellationToken);
 
-        return await service.BookAsync(request, cancellationToken);
+        return await service.BookAsync(request, actor: null, cancellationToken);
     }
 
     private AppointmentBookingService CreateService(
@@ -307,6 +308,7 @@ public sealed class BookingConcurrencyTests :
             new WorkingScheduleRepository(
                 context,
                 TestWorkingHours.ClinicTimeZone),
-            TimeProvider.System, _policy);
+            TimeProvider.System, _policy,
+            new AuditEventStore(context, TimeProvider.System));
     }
 }

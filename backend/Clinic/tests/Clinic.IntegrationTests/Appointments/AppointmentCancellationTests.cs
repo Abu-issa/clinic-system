@@ -7,6 +7,7 @@ using Clinic.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 using Clinic.Application.Schedules;
+using Clinic.Infrastructure.Audit;
 
 namespace Clinic.IntegrationTests.Appointments;
 
@@ -128,7 +129,8 @@ public sealed class AppointmentCancellationTests :
                 new WorkingScheduleRepository(
                     context,
                     TestWorkingHours.ClinicTimeZone),
-                TimeProvider.System, TestWorkingHours.Policy);
+                TimeProvider.System, TestWorkingHours.Policy,
+                new AuditEventStore(context, TimeProvider.System));
 
             var result = await bookingService.BookAsync(
                 new BookAppointmentRequest(
@@ -277,6 +279,7 @@ public sealed class AppointmentCancellationTests :
             new AppointmentRepository(context),
             context,
             new SqlBookingTransaction(context),
-            TimeProvider.System);
+            TimeProvider.System,
+            new AuditEventStore(context, TimeProvider.System));
     }
 }

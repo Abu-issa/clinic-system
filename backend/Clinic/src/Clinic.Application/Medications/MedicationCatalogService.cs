@@ -1,5 +1,7 @@
+using Clinic.Application.Audit;
 using Clinic.Application.Exceptions;
 using Clinic.Domain.Entities;
+using Clinic.Domain.Enums;
 
 namespace Clinic.Application.Medications;
 
@@ -7,10 +9,11 @@ namespace Clinic.Application.Medications;
 /// Application service for Medication Catalog administration and search.
 /// Optimistic concurrency via RowVersion. Changes are transactional and safely detached on error.
 /// </summary>
-public sealed class MedicationCatalogService(IMedicationCatalogStore store, TimeProvider clock)
+public sealed class MedicationCatalogService(IMedicationCatalogStore store, TimeProvider clock, IAuditMutationWriter auditWriter)
 {
     public async Task<MedicationCatalogResult> CreateAsync(CreateMedicationRequest request, string actor, CancellationToken ct = default)
     {
+        using var auditScope = auditWriter.BeginMutation();
         if (string.IsNullOrWhiteSpace(actor))
             return Fail(MedicationCatalogError.InvalidInput);
 
@@ -37,6 +40,8 @@ public sealed class MedicationCatalogService(IMedicationCatalogStore store, Time
                 return Fail(MedicationCatalogError.DuplicateMedication);
 
             store.Add(medication);
+            auditWriter.Append(new AuditAppendRequest(actor, "medication.create", "medication",
+                medication.Id.ToString("N"), null, AuditOutcome.Succeeded, null, null));
             await store.SaveAsync(ct);
             return MedicationCatalogResult.Success(Map(medication));
         }
@@ -92,16 +97,18 @@ public sealed class MedicationCatalogService(IMedicationCatalogStore store, Time
             request.Route,
             request.Category,
             actor,
-            clock.GetUtcNow()), ct);
+            clock.GetUtcNow()), ct, actor, "medication.update", null);
 
     public Task<MedicationCatalogResult> DeactivateAsync(Guid id, byte[] expectedRowVersion, string actor, CancellationToken ct = default) =>
-        Mutate(id, expectedRowVersion, m => m.Deactivate(actor, clock.GetUtcNow()), ct);
+        Mutate(id, expectedRowVersion, m => m.Deactivate(actor, clock.GetUtcNow()), ct, actor, "medication.deactivate", null);
 
     public Task<MedicationCatalogResult> ActivateAsync(Guid id, byte[] expectedRowVersion, string actor, CancellationToken ct = default) =>
-        Mutate(id, expectedRowVersion, m => m.Activate(actor, clock.GetUtcNow()), ct);
+        Mutate(id, expectedRowVersion, m => m.Activate(actor, clock.GetUtcNow()), ct, actor, "medication.activate", null);
 
-    private async Task<MedicationCatalogResult> Mutate(Guid id, byte[] version, Action<Medication> mutation, CancellationToken ct)
+    private async Task<MedicationCatalogResult> Mutate(Guid id, byte[] version, Action<Medication> mutation, CancellationToken ct,
+        string actor, string auditAction, IReadOnlyList<KeyValuePair<string, string>>? auditMetadata)
     {
+        using var auditScope = auditWriter.BeginMutation();
         if (version is not { Length: 8 })
             return Fail(MedicationCatalogError.InvalidRowVersion);
 
@@ -127,6 +134,8 @@ public sealed class MedicationCatalogService(IMedicationCatalogStore store, Time
             }
 
             store.ExpectVersion(medication, version);
+            auditWriter.Append(new AuditAppendRequest(actor, auditAction, "medication",
+                medication.Id.ToString("N"), null, AuditOutcome.Succeeded, null, auditMetadata));
             await store.SaveAsync(ct);
             return MedicationCatalogResult.Success(Map(medication));
         }

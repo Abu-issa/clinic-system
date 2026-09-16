@@ -113,8 +113,9 @@ builder.Services.AddScoped<IPrescriptionPrintStore, PrescriptionPrintStore>();
 builder.Services.AddSingleton<IPrescriptionPdfRenderer>(sp =>
     new QuestPdfPrescriptionRenderer(sp.GetRequiredService<PrintLicenseOptions>()));
 builder.Services.AddScoped<PrescriptionPrintService>();
-// Audit foundation only: no feature writes audit events yet (integration is a later phase).
+// Both audit writers share the scoped ClinicDbContext; mutations use their business save/transaction.
 builder.Services.AddScoped<IAuditEventWriter, AuditEventStore>();
+builder.Services.AddScoped<IAuditMutationWriter, AuditEventStore>();
 builder.Services.AddScoped<StaffCookieEvents>();
 builder.Services.AddAuthentication("ClinicStaff")
     .AddCookie("ClinicStaff", options => ConfigureCookie(options, "__Host-Clinic.Staff", 30))

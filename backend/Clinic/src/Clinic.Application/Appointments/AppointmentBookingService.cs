@@ -1,5 +1,7 @@
 using Clinic.Application.Abstractions;
+using Clinic.Application.Audit;
 using Clinic.Domain.Entities;
+using Clinic.Domain.Enums;
 
 namespace Clinic.Application.Appointments;
 
@@ -13,6 +15,7 @@ public sealed class AppointmentBookingService
     private readonly TimeProvider _timeProvider;
     private readonly IWorkingScheduleRepository _workingSchedule;
     private readonly BookingPolicy _policy;
+    private readonly IAuditMutationWriter _auditWriter;
 
     public AppointmentBookingService(
         IPatientRepository patients,
@@ -22,7 +25,8 @@ public sealed class AppointmentBookingService
         IBookingTransaction bookingTransaction,
         IWorkingScheduleRepository workingSchedule,
         TimeProvider timeProvider,
-        BookingPolicy policy)
+        BookingPolicy policy,
+        IAuditMutationWriter auditWriter)
     {
         _patients = patients;
         _doctors = doctors;
@@ -32,12 +36,15 @@ public sealed class AppointmentBookingService
         _workingSchedule = workingSchedule;
         _timeProvider = timeProvider;
         _policy = policy;
+        _auditWriter = auditWriter;
     }
 
     public async Task<BookAppointmentResult> BookAsync(
         BookAppointmentRequest request,
+        string? actor = null,
         CancellationToken cancellationToken = default)
     {
+        using var auditScope = _auditWriter.BeginMutation();
         ArgumentNullException.ThrowIfNull(request);
 
         if (request.PatientId == Guid.Empty)
@@ -137,6 +144,10 @@ public sealed class AppointmentBookingService
                     request.AppointmentType);
 
                 await _appointments.AddAsync(appointment, token);
+
+                _auditWriter.Append(new AuditAppendRequest(actor, "appointment.create", "appointment",
+                    appointment.Id.ToString("N"), appointment.PatientId, AuditOutcome.Succeeded, null,
+                    [new KeyValuePair<string, string>("appointment-type", request.AppointmentType.ToString())]));
 
                 await _unitOfWork.SaveChangesAsync(token);
 

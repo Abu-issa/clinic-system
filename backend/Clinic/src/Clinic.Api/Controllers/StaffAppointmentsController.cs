@@ -46,6 +46,7 @@ public sealed class StaffAppointmentsController : ControllerBase
 
         var result = await _bookingService.BookAsync(
             request,
+            User.FindFirst("staff_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
             cancellationToken);
 
         return BookingHttpResultMapper.Map(result, HttpContext);

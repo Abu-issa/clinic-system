@@ -5,6 +5,7 @@ using Clinic.Infrastructure.Repositories;
 using Clinic.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+using Clinic.Infrastructure.Audit;
 
 namespace Clinic.IntegrationTests.Appointments;
 
@@ -64,7 +65,8 @@ public sealed class BookingDayClosureTests :
                 new WorkingScheduleRepository(
                     context,
                     TestWorkingHours.ClinicTimeZone),
-                TimeProvider.System, TestWorkingHours.Policy);
+                TimeProvider.System, TestWorkingHours.Policy,
+                new AuditEventStore(context, TimeProvider.System));
 
             var request = new BookAppointmentRequest(
                 patient.Id,

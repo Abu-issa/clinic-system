@@ -2,6 +2,7 @@ using Clinic.Application.Medications;
 using Clinic.Application.Prescriptions;
 using Clinic.Domain.Entities;
 using Clinic.Domain.Enums;
+using Clinic.Infrastructure.Audit;
 using Clinic.Infrastructure.Persistence;
 using Clinic.Infrastructure.Repositories;
 using Clinic.IntegrationTests.Infrastructure;
@@ -15,8 +16,8 @@ public sealed class PrescriptionPersistenceTests(SqlDatabaseFixture database) : 
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 15, 10, 0, 0, TimeSpan.Zero);
     private sealed class FixedClock : TimeProvider { public override DateTimeOffset GetUtcNow() => Now; }
-    private static PrescriptionService Service(ClinicDbContext db) => new(new PrescriptionStore(db), new FixedClock());
-    private static MedicationCatalogService Catalog(ClinicDbContext db) => new(new MedicationCatalogStore(db), new FixedClock());
+    private static PrescriptionService Service(ClinicDbContext db) => new(new PrescriptionStore(db), new FixedClock(), new AuditEventStore(db, new FixedClock()));
+    private static MedicationCatalogService Catalog(ClinicDbContext db) => new(new MedicationCatalogStore(db), new FixedClock(), new AuditEventStore(db, new FixedClock()));
 
     private static async Task<Patient> SeedPatientAsync(ClinicDbContext db)
     {

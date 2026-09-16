@@ -145,7 +145,16 @@ public class AppointmentBookingServiceTests
             store,
             store,
             store,
-            new FixedTimeProvider(Now), new BookingPolicy(new BookingPolicySettings(), TimeZoneInfo.FindSystemTimeZoneById("Asia/Amman")));
+            new FixedTimeProvider(Now), new BookingPolicy(new BookingPolicySettings(), TimeZoneInfo.FindSystemTimeZoneById("Asia/Amman")),
+            new CapturingAudit());
+    }
+
+    private sealed class CapturingAudit : Clinic.Application.Audit.IAuditMutationWriter, IDisposable
+    {
+        public List<Clinic.Application.Audit.AuditAppendRequest> Appended { get; } = [];
+        public void Append(Clinic.Application.Audit.AuditAppendRequest request) => Appended.Add(request);
+        public IDisposable BeginMutation() => this;
+        public void Dispose() { }
     }
 
 

@@ -1,3 +1,4 @@
+using Clinic.Application.Audit;
 using Clinic.Application.Exceptions;
 using Clinic.Domain.Entities;
 using Clinic.Domain.Enums;
@@ -9,14 +10,16 @@ namespace Clinic.Application.Prescriptions;
 /// Prescriptions derive PatientId and DoctorId strictly from their parent Visit.
 /// Lifecycle: Draft -> Finalized -> Released -> Cancelled.
 /// Concurrency is protected via SQL RowVersion. Changes are transactional and safely detached on error.
+/// Successful mutations append an AuditEvent into the same unit of work (atomic with the mutation).
 /// </summary>
-public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider clock)
+public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider clock, IAuditMutationWriter auditWriter)
 {
     public async Task<PrescriptionResult> CreateDraftAsync(
         CreatePrescriptionDraftRequest request,
         string actor,
         CancellationToken ct = default)
     {
+        using var auditScope = auditWriter.BeginMutation();
         if (string.IsNullOrWhiteSpace(actor))
             return Fail(PrescriptionError.InvalidInput);
         if (request.VisitId == Guid.Empty)
@@ -74,6 +77,15 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
                 originalToReplace.SetReplacedBy(prescription.Id, actor, now);
                 store.ExpectVersion(originalToReplace, request.ExpectedOriginalRowVersion!);
             }
+
+            // One audit event for the semantic operation: a plain draft or a replacement draft.
+            if (originalToReplace != null)
+                auditWriter.Append(new AuditAppendRequest(actor, "prescription.replace", "prescription",
+                    prescription.Id.ToString("N"), prescription.PatientId, AuditOutcome.Succeeded, null,
+                    [new KeyValuePair<string, string>("replaces-prescription", originalToReplace.Id.ToString("N"))]));
+            else
+                auditWriter.Append(new AuditAppendRequest(actor, "prescription.create", "prescription",
+                    prescription.Id.ToString("N"), prescription.PatientId, AuditOutcome.Succeeded, null, null));
 
             await store.SaveAsync(ct);
             return PrescriptionResult.Success(Map(prescription));
@@ -152,7 +164,9 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
         UpdatePrescriptionNotesRequest request,
         string actor,
         CancellationToken ct = default) =>
-        Mutate(patientId, prescriptionId, request.ExpectedRowVersion, p => p.UpdateDraftNotes(request.Notes, actor, clock.GetUtcNow()), ct);
+        Mutate(patientId, prescriptionId, request.ExpectedRowVersion, p => p.UpdateDraftNotes(request.Notes, actor, clock.GetUtcNow()), ct,
+            audit: p => new AuditAppendRequest(actor, "prescription.notes.update", "prescription",
+                p.Id.ToString("N"), p.PatientId, AuditOutcome.Succeeded, null, null));
 
     public async Task<PrescriptionResult> AddItemAsync(
         Guid patientId,
@@ -161,6 +175,7 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
         string actor,
         CancellationToken ct = default)
     {
+        using var auditScope = auditWriter.BeginMutation();
         if (request.ExpectedRowVersion is not { Length: 8 })
             return Fail(PrescriptionError.InvalidRowVersion);
 
@@ -202,6 +217,9 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
             }
 
             store.ExpectVersion(prescription, request.ExpectedRowVersion);
+            auditWriter.Append(new AuditAppendRequest(actor, "prescription.item.add", "prescription",
+                prescription.Id.ToString("N"), prescription.PatientId, AuditOutcome.Succeeded, null,
+                [new KeyValuePair<string, string>("item.count", prescription.Items.Count.ToString())]));
             await store.SaveAsync(ct);
             return PrescriptionResult.Success(Map(prescription));
         }
@@ -224,6 +242,7 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
         string actor,
         CancellationToken ct = default)
     {
+        using var auditScope = auditWriter.BeginMutation();
         if (request.ExpectedRowVersion is not { Length: 8 })
             return Fail(PrescriptionError.InvalidRowVersion);
 
@@ -274,6 +293,9 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
             }
 
             store.ExpectVersion(prescription, request.ExpectedRowVersion);
+            auditWriter.Append(new AuditAppendRequest(actor, "prescription.item.update", "prescription",
+                prescription.Id.ToString("N"), prescription.PatientId, AuditOutcome.Succeeded, null,
+                [new KeyValuePair<string, string>("item.count", prescription.Items.Count.ToString())]));
             await store.SaveAsync(ct);
             return PrescriptionResult.Success(Map(prescription));
         }
@@ -296,6 +318,7 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
         string actor,
         CancellationToken ct = default)
     {
+        using var auditScope = auditWriter.BeginMutation();
         if (expectedRowVersion is not { Length: 8 })
             return Fail(PrescriptionError.InvalidRowVersion);
 
@@ -327,6 +350,9 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
             }
 
             store.ExpectVersion(prescription, expectedRowVersion);
+            auditWriter.Append(new AuditAppendRequest(actor, "prescription.item.remove", "prescription",
+                prescription.Id.ToString("N"), prescription.PatientId, AuditOutcome.Succeeded, null,
+                [new KeyValuePair<string, string>("item.count", prescription.Items.Count.ToString())]));
             await store.SaveAsync(ct);
             return PrescriptionResult.Success(Map(prescription));
         }
@@ -347,7 +373,9 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
         ReorderPrescriptionItemsRequest request,
         string actor,
         CancellationToken ct = default) =>
-        Mutate(patientId, prescriptionId, request.ExpectedRowVersion, p => p.ReorderItems(request.OrderedItemIds, actor, clock.GetUtcNow()), ct);
+        Mutate(patientId, prescriptionId, request.ExpectedRowVersion, p => p.ReorderItems(request.OrderedItemIds, actor, clock.GetUtcNow()), ct,
+            audit: p => new AuditAppendRequest(actor, "prescription.item.reorder", "prescription",
+                p.Id.ToString("N"), p.PatientId, AuditOutcome.Succeeded, null, null));
 
     public async Task<PrescriptionResult> FinalizeAsync(
         Guid patientId,
@@ -356,6 +384,7 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
         string actor,
         CancellationToken ct = default)
     {
+        using var auditScope = auditWriter.BeginMutation();
         if (expectedRowVersion is not { Length: 8 })
             return Fail(PrescriptionError.InvalidRowVersion);
 
@@ -402,6 +431,9 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
             }
 
             store.ExpectVersion(prescription, expectedRowVersion);
+            auditWriter.Append(new AuditAppendRequest(actor, "prescription.finalize", "prescription",
+                prescription.Id.ToString("N"), prescription.PatientId, AuditOutcome.Succeeded, null,
+                [new KeyValuePair<string, string>("item.count", prescription.Items.Count.ToString())]));
             await store.SaveAsync(ct);
             await scope.CommitAsync(ct);
             return PrescriptionResult.Success(Map(prescription));
@@ -423,7 +455,9 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
         byte[] expectedRowVersion,
         string actor,
         CancellationToken ct = default) =>
-        Mutate(patientId, prescriptionId, expectedRowVersion, p => p.ReleasePrescription(actor, clock.GetUtcNow()), ct);
+        Mutate(patientId, prescriptionId, expectedRowVersion, p => p.ReleasePrescription(actor, clock.GetUtcNow()), ct,
+            audit: p => new AuditAppendRequest(actor, "prescription.release", "prescription",
+                p.Id.ToString("N"), p.PatientId, AuditOutcome.Succeeded, null, null));
 
     public Task<PrescriptionResult> CancelAsync(
         Guid patientId,
@@ -431,15 +465,20 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
         CancelPrescriptionRequest request,
         string actor,
         CancellationToken ct = default) =>
-        Mutate(patientId, prescriptionId, request.ExpectedRowVersion, p => p.CancelPrescription(request.Reason, actor, clock.GetUtcNow()), ct);
+        Mutate(patientId, prescriptionId, request.ExpectedRowVersion, p => p.CancelPrescription(request.Reason, actor, clock.GetUtcNow()), ct,
+            // Cancellation free text is never audited.
+            audit: p => new AuditAppendRequest(actor, "prescription.cancel", "prescription",
+                p.Id.ToString("N"), p.PatientId, AuditOutcome.Succeeded, null, null));
 
     private async Task<PrescriptionResult> Mutate(
         Guid patientId,
         Guid prescriptionId,
         byte[] version,
         Action<Prescription> mutation,
-        CancellationToken ct)
+        CancellationToken ct,
+        Func<Prescription, AuditAppendRequest>? audit = null)
     {
+        using var auditScope = auditWriter.BeginMutation();
         if (version is not { Length: 8 })
             return Fail(PrescriptionError.InvalidRowVersion);
 
@@ -465,6 +504,7 @@ public sealed class PrescriptionService(IPrescriptionStore store, TimeProvider c
             }
 
             store.ExpectVersion(prescription, version);
+            if (audit is not null) auditWriter.Append(audit(prescription));
             await store.SaveAsync(ct);
             return PrescriptionResult.Success(Map(prescription));
         }

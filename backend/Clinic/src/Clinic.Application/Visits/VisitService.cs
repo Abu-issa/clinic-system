@@ -1,11 +1,13 @@
+using Clinic.Application.Audit;
 using Clinic.Application.Exceptions;
 using Clinic.Domain.Entities;
+using Clinic.Domain.Enums;
 
 namespace Clinic.Application.Visits;
 
 // Staff authorization belongs at the future API boundary. Actor must come from its trusted principal.
 // Every existing-visit operation includes PatientId to bind lookup to the authorized resource.
-public sealed class VisitService(IVisitStore store, TimeProvider clock)
+public sealed class VisitService(IVisitStore store, TimeProvider clock, IAuditMutationWriter auditWriter)
 {
     public async Task<VisitResult> CreateAsync(CreateVisitRequest request, string actor, CancellationToken ct = default)
     {
@@ -45,12 +47,18 @@ public sealed class VisitService(IVisitStore store, TimeProvider clock)
     public Task<VisitResult> AddVitalAsync(Guid patientId, Guid visitId, AddVitalRequest request, string actor, CancellationToken ct = default) =>
         Mutate(patientId, visitId, request.ExpectedRowVersion, v => v.AddVital(request.Reading, request.MeasuredAtUtc, actor, clock.GetUtcNow()), ct);
     public Task<VisitResult> FinalizeAsync(Guid patientId, Guid visitId, byte[] expectedRowVersion, string actor, CancellationToken ct = default) =>
-        Mutate(patientId, visitId, expectedRowVersion, v => v.FinalizeVisit(actor, clock.GetUtcNow()), ct);
+        Mutate(patientId, visitId, expectedRowVersion, v => v.FinalizeVisit(actor, clock.GetUtcNow()), ct,
+            audit: v => new AuditAppendRequest(actor, "visit.finalize", "visit",
+                v.Id.ToString("N"), v.PatientId, AuditOutcome.Succeeded, null, null));
     public Task<VisitResult> AddAmendmentAsync(Guid patientId, Guid visitId, AddAmendmentRequest request, string actor, CancellationToken ct = default) =>
-        Mutate(patientId, visitId, request.ExpectedRowVersion, v => v.AddAmendment(request.Reason, request.AmendmentText, actor, clock.GetUtcNow()), ct);
+        Mutate(patientId, visitId, request.ExpectedRowVersion, v => v.AddAmendment(request.Reason, request.AmendmentText, actor, clock.GetUtcNow()), ct,
+            audit: v => new AuditAppendRequest(actor, "visit.amend", "visit",
+                v.Id.ToString("N"), v.PatientId, AuditOutcome.Succeeded, null, null));
 
-    private async Task<VisitResult> Mutate(Guid patientId, Guid visitId, byte[] version, Action<Visit> mutation, CancellationToken ct)
+    private async Task<VisitResult> Mutate(Guid patientId, Guid visitId, byte[] version, Action<Visit> mutation, CancellationToken ct,
+        Func<Visit, AuditAppendRequest>? audit = null)
     {
+        using var auditScope = auditWriter.BeginMutation();
         if (version is not { Length: 8 }) return Fail(VisitError.InvalidRowVersion);
         try
         {
@@ -60,7 +68,9 @@ public sealed class VisitService(IVisitStore store, TimeProvider clock)
             try { mutation(visit); }
             catch (ArgumentException) { return Fail(VisitError.InvalidInput); }
             catch (InvalidOperationException) { return Fail(VisitError.InvalidLifecycle); }
-            store.ExpectVersion(visit, version); await store.SaveAsync(ct);
+            store.ExpectVersion(visit, version);
+            if (audit is not null) auditWriter.Append(audit(visit));
+            await store.SaveAsync(ct);
             return VisitResult.Success(Map(visit));
         }
         catch (PersistenceConcurrencyException) { return Fail(VisitError.VisitChanged); }

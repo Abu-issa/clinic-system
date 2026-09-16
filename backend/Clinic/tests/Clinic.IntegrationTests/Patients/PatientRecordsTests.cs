@@ -1,6 +1,7 @@
 using Clinic.Application.Patients;
 using Clinic.Domain.Entities;
 using Clinic.Domain.Enums;
+using Clinic.Infrastructure.Audit;
 using Clinic.Infrastructure.Repositories;
 using Clinic.IntegrationTests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,7 @@ public sealed class PatientRecordsTests : IClassFixture<SqlDatabaseFixture>
     private readonly SqlDatabaseFixture database;
     public PatientRecordsTests(SqlDatabaseFixture database) => this.database = database;
     private static CreatePatientRequest NewPatient(string mrn) => new("Synthetic", "shared-phone", null, mrn, "PAPER", null, null, null, null);
-    private PatientRecordsService Service(Clinic.Infrastructure.Persistence.ClinicDbContext db) => new(new PatientRecordsStore(db), TimeProvider.System);
+    private PatientRecordsService Service(Clinic.Infrastructure.Persistence.ClinicDbContext db) => new(new PatientRecordsStore(db), TimeProvider.System, new AuditEventStore(db, TimeProvider.System));
 
     [Fact]
     public async Task CreationRequiresMrnButNoAccountAndAllowsSharedPhone()

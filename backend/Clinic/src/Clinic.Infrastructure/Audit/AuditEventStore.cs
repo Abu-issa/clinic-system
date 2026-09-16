@@ -13,8 +13,31 @@ namespace Clinic.Infrastructure.Audit;
 /// Save failures detach only the staged audit events: a co-committed mutation's state is left
 /// for its own store's failure handling.
 /// </summary>
-public sealed class AuditEventStore(ClinicDbContext db, TimeProvider clock) : IAuditEventWriter
+public sealed class AuditEventStore(ClinicDbContext db, TimeProvider clock) : IAuditEventWriter, IAuditMutationWriter
 {
+    private MutationScope? currentMutation;
+
+    public IDisposable BeginMutation()
+    {
+        var scope = new MutationScope(this, db, currentMutation);
+        currentMutation = scope;
+        return scope;
+    }
+
+    private sealed class MutationScope(AuditEventStore owner, ClinicDbContext context, MutationScope? parent) : IDisposable
+    {
+        public List<AuditEvent> Events { get; } = [];
+        public void Dispose()
+        {
+            foreach (var auditEvent in Events)
+            {
+                var entry = context.Entry(auditEvent);
+                if (entry.State == EntityState.Added) entry.State = EntityState.Detached;
+            }
+            owner.currentMutation = parent;
+        }
+    }
+
     private static readonly JsonSerializerOptions MetadataJson = new(JsonSerializerDefaults.Web);
 
     public static string SerializeMetadata(IReadOnlyDictionary<string, string> metadata) =>
@@ -37,6 +60,7 @@ public sealed class AuditEventStore(ClinicDbContext db, TimeProvider clock) : IA
             request.Metadata,
             clock.GetUtcNow());
         db.Add(auditEvent);
+        currentMutation?.Events.Add(auditEvent);
     }
 
     public async Task SaveAsync(CancellationToken ct = default)

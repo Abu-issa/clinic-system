@@ -1,5 +1,6 @@
 using Clinic.Application.Appointments;
 using Clinic.Application.Abstractions;
+using Clinic.Infrastructure.Audit;
 using Clinic.Domain.Entities;
 using Clinic.Domain.Enums;
 using Clinic.Infrastructure.Persistence;
@@ -355,7 +356,8 @@ public sealed class AppointmentReschedulingTests :
         var service = new AppointmentReschedulingService(
             new AppointmentRepository(context), new DoctorRepository(context),
             new WorkingScheduleRepository(context, TestWorkingHours.ClinicTimeZone),
-            unitOfWork, new SqlBookingTransaction(context), TimeProvider.System, TestWorkingHours.Policy);
+            unitOfWork, new SqlBookingTransaction(context), TimeProvider.System, TestWorkingHours.Policy,
+            new AuditEventStore(context, TimeProvider.System));
 
         var result = await service.RescheduleAsync(new RescheduleAppointmentRequest(
             appointment.Id, doctor.Id, start.AddHours(1), start.AddHours(1).AddMinutes(30),
@@ -407,7 +409,7 @@ public sealed class AppointmentReschedulingTests :
                 context,
                 TestWorkingHours.ClinicTimeZone),
             context,
-            new SqlBookingTransaction(context),
-            TimeProvider.System, TestWorkingHours.Policy);
+            new SqlBookingTransaction(context), TimeProvider.System, TestWorkingHours.Policy,
+            new AuditEventStore(context, TimeProvider.System));
     }
 }

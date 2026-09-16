@@ -1,4 +1,5 @@
 using Clinic.Application.Abstractions;
+using Clinic.Application.Audit;
 using Clinic.Domain.Enums;
 using Clinic.Application.Exceptions;
 
@@ -13,6 +14,7 @@ public sealed class AppointmentReschedulingService
     private readonly IBookingTransaction _transaction;
     private readonly TimeProvider _timeProvider;
     private readonly BookingPolicy _policy;
+    private readonly IAuditMutationWriter _auditWriter;
 
     public AppointmentReschedulingService(
         IAppointmentRepository appointments,
@@ -21,7 +23,8 @@ public sealed class AppointmentReschedulingService
         IUnitOfWork unitOfWork,
         IBookingTransaction transaction,
         TimeProvider timeProvider,
-        BookingPolicy policy)
+        BookingPolicy policy,
+        IAuditMutationWriter auditWriter)
     {
         _appointments = appointments;
         _doctors = doctors;
@@ -30,6 +33,7 @@ public sealed class AppointmentReschedulingService
         _transaction = transaction;
         _timeProvider = timeProvider;
         _policy = policy;
+        _auditWriter = auditWriter;
     }
 
     public async Task<RescheduleAppointmentResult> RescheduleAsync(
@@ -37,6 +41,7 @@ public sealed class AppointmentReschedulingService
         string actorUserId,
         CancellationToken cancellationToken = default)
     {
+        using var auditScope = _auditWriter.BeginMutation();
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -185,6 +190,11 @@ public sealed class AppointmentReschedulingService
                 await _appointments.AddRescheduleAsync(
                     change,
                     token);
+
+                // Reschedule reason free text is never audited; only the opaque change identifier.
+                _auditWriter.Append(new AuditAppendRequest(actorUserId, "appointment.reschedule", "appointment",
+                    appointment.Id.ToString("N"), appointment.PatientId, AuditOutcome.Succeeded, null,
+                    [new KeyValuePair<string, string>("reschedule.id", change.Id.ToString("N"))]));
 
                 await _unitOfWork.SaveChangesAsync(token);
 

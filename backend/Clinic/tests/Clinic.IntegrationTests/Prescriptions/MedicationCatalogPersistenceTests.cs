@@ -1,3 +1,4 @@
+using Clinic.Infrastructure.Audit;
 using Clinic.Application.Medications;
 using Clinic.Domain.Entities;
 using Clinic.Domain.Enums;
@@ -14,7 +15,7 @@ public sealed class MedicationCatalogPersistenceTests(SqlDatabaseFixture databas
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 15, 10, 0, 0, TimeSpan.Zero);
     private sealed class FixedClock : TimeProvider { public override DateTimeOffset GetUtcNow() => Now; }
-    private static MedicationCatalogService Service(ClinicDbContext db) => new(new MedicationCatalogStore(db), new FixedClock());
+    private static MedicationCatalogService Service(ClinicDbContext db) => new(new MedicationCatalogStore(db), new FixedClock(), new AuditEventStore(db, new FixedClock()));
 
     private static CreateMedicationRequest CreateRequest(
         string? genericEn = "Ibuprofen", string strength = "500", string unit = "mg", string? genericAr = null) =>

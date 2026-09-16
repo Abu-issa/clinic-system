@@ -1,4 +1,5 @@
 using Clinic.Application.Abstractions;
+using Clinic.Application.Audit;
 using Clinic.Domain.Enums;
 
 namespace Clinic.Application.Appointments;
@@ -9,17 +10,20 @@ public sealed class AppointmentCancellationService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IBookingTransaction _transaction;
     private readonly TimeProvider _timeProvider;
+    private readonly IAuditMutationWriter _auditWriter;
 
     public AppointmentCancellationService(
         IAppointmentRepository appointments,
         IUnitOfWork unitOfWork,
         IBookingTransaction transaction,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IAuditMutationWriter auditWriter)
     {
         _appointments = appointments;
         _unitOfWork = unitOfWork;
         _transaction = transaction;
         _timeProvider = timeProvider;
+        _auditWriter = auditWriter;
     }
 
     public async Task<CancelAppointmentResult> CancelAsync(
@@ -27,6 +31,7 @@ public sealed class AppointmentCancellationService
         string actorUserId,
         CancellationToken cancellationToken = default)
     {
+        using var auditScope = _auditWriter.BeginMutation();
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -83,6 +88,10 @@ public sealed class AppointmentCancellationService
                     request.Reason,
                     actorUserId,
                     _timeProvider.GetUtcNow());
+
+                // Cancellation free text is never audited.
+                _auditWriter.Append(new AuditAppendRequest(actorUserId, "appointment.cancel", "appointment",
+                    appointment.Id.ToString("N"), appointment.PatientId, AuditOutcome.Succeeded, null, null));
 
                 await _unitOfWork.SaveChangesAsync(token);
 

@@ -17,7 +17,7 @@ public sealed class StaffPatientRecordsController(PatientRecordsService service,
     public async Task<IResult> Create(CreatePatientRequest body, CancellationToken ct)
     {
         if (!await Csrf()) return Error(400, "invalid_csrf_token");
-        return Admin(await service.CreateAsync(body, ct), created: true);
+        return Admin(await service.CreateAsync(body, GetActor(), ct), created: true);
     }
 
     [HttpGet("{patientId:guid}")]
@@ -32,7 +32,7 @@ public sealed class StaffPatientRecordsController(PatientRecordsService service,
     {
         if (!await Allowed(patientId, "PatientAdminWrite")) return Results.Forbid();
         if (!await Csrf()) return Error(400, "invalid_csrf_token");
-        return Admin(await service.UpdateAsync(patientId, body, ct));
+        return Admin(await service.UpdateAsync(patientId, body, GetActor(), ct));
     }
 
     [HttpGet("{patientId:guid}/medical-profile")]
@@ -47,8 +47,11 @@ public sealed class StaffPatientRecordsController(PatientRecordsService service,
     {
         if (!await Allowed(patientId, "PatientClinicalWrite")) return Results.Forbid();
         if (!await Csrf()) return Error(400, "invalid_csrf_token");
-        return Clinical(await service.SaveProfileAsync(patientId, body, User.FindFirst("staff_id")!.Value, ct));
+        return Clinical(await service.SaveProfileAsync(patientId, body, GetActor() ?? "", ct));
     }
+
+    private string? GetActor() =>
+        User.FindFirst("staff_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
     private async Task<bool> Allowed(Guid id, string policy) =>
         (await authorization.AuthorizeAsync(User, id, policy)).Succeeded;

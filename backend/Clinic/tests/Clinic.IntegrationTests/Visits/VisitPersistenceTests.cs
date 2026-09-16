@@ -1,6 +1,7 @@
 using Clinic.Application.Visits;
 using Clinic.Domain.Entities;
 using Clinic.Domain.Enums;
+using Clinic.Infrastructure.Audit;
 using Clinic.Infrastructure.Persistence;
 using Clinic.Infrastructure.Repositories;
 using Clinic.IntegrationTests.Infrastructure;
@@ -15,7 +16,7 @@ public sealed class VisitPersistenceTests(SqlDatabaseFixture database) : IClassF
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 15, 10, 0, 0, TimeSpan.Zero);
     private sealed class FixedClock : TimeProvider { public override DateTimeOffset GetUtcNow() => Now; }
-    private static VisitService Service(ClinicDbContext db) => new(new VisitStore(db), new FixedClock());
+    private static VisitService Service(ClinicDbContext db) => new(new VisitStore(db), new FixedClock(), new AuditEventStore(db, new FixedClock()));
 
     private static async Task<(Patient Patient, Doctor Doctor, Appointment Appointment)> Seed(ClinicDbContext db)
     {

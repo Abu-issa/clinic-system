@@ -1,10 +1,11 @@
+using Clinic.Application.Audit;
 using Clinic.Application.Exceptions;
 using Clinic.Domain.Entities;
 using Clinic.Domain.Enums;
 
 namespace Clinic.Application.Patients;
 
-public sealed class PatientRecordsService(IPatientRecordsStore store, TimeProvider clock)
+public sealed class PatientRecordsService(IPatientRecordsStore store, TimeProvider clock, IAuditMutationWriter auditWriter)
 {
     public async Task<PatientAdminResult> GetAsync(Guid id, CancellationToken ct = default)
     {
@@ -12,8 +13,9 @@ public sealed class PatientRecordsService(IPatientRecordsStore store, TimeProvid
         return patient is null ? AdminFailure(PatientAdminError.PatientNotFound) : PatientAdminResult.Success(Admin(patient));
     }
 
-    public async Task<PatientAdminResult> CreateAsync(CreatePatientRequest input, CancellationToken ct = default)
+    public async Task<PatientAdminResult> CreateAsync(CreatePatientRequest input, string? actor = null, CancellationToken ct = default)
     {
+        using var auditScope = auditWriter.BeginMutation();
         if (string.IsNullOrWhiteSpace(input.MedicalRecordNumber) || input.MedicalRecordNumber.Trim().Length > 32)
             return AdminFailure(PatientAdminError.InvalidMedicalRecordNumber);
         var validation = ValidateContact(input.FullName, input.PhoneNumber, input.DateOfBirth,
@@ -29,13 +31,16 @@ public sealed class PatientRecordsService(IPatientRecordsStore store, TimeProvid
         }
         catch (ArgumentException) { return AdminFailure(PatientAdminError.InvalidLegacyReferences); }
         store.Add(patient);
+        auditWriter.Append(new AuditAppendRequest(actor, "patient.create", "patient",
+            patient.Id.ToString("N"), patient.Id, AuditOutcome.Succeeded, null, null));
         try { await store.SaveAsync(ct); }
         catch (PatientRecordConflictException) { return AdminFailure(PatientAdminError.MedicalRecordNumberAlreadyExists); }
         return PatientAdminResult.Success(Admin(patient));
     }
 
-    public async Task<PatientAdminResult> UpdateAsync(Guid id, UpdatePatientRequest input, CancellationToken ct = default)
+    public async Task<PatientAdminResult> UpdateAsync(Guid id, UpdatePatientRequest input, string? actor = null, CancellationToken ct = default)
     {
+        using var auditScope = auditWriter.BeginMutation();
         if (input.ExpectedRowVersion is not { Length: 8 }) return AdminFailure(PatientAdminError.InvalidRowVersion);
         var patient = await store.PatientAsync(id, ct);
         if (patient is null) return AdminFailure(PatientAdminError.PatientNotFound);
@@ -47,6 +52,8 @@ public sealed class PatientRecordsService(IPatientRecordsStore store, TimeProvid
             input.EmergencyContactName, input.EmergencyContactPhone, input.EmergencyContactRelation); }
         catch (ArgumentException) { return AdminFailure(PatientAdminError.InvalidDateOfBirth); }
         store.ExpectVersion(patient, input.ExpectedRowVersion);
+        auditWriter.Append(new AuditAppendRequest(actor, "patient.admin.update", "patient",
+            patient.Id.ToString("N"), patient.Id, AuditOutcome.Succeeded, null, null));
         try { await store.SaveAsync(ct); }
         catch (PersistenceConcurrencyException) { return AdminFailure(PatientAdminError.PatientChanged); }
         return PatientAdminResult.Success(Admin(patient));
@@ -63,6 +70,7 @@ public sealed class PatientRecordsService(IPatientRecordsStore store, TimeProvid
     // Superseded rows are never deleted. Clients must send every retained entry and the last aggregate RowVersion.
     public async Task<MedicalProfileResult> SaveProfileAsync(Guid id, SaveMedicalProfileRequest input, string staffId, CancellationToken ct = default)
     {
+        using var auditScope = auditWriter.BeginMutation();
         if (string.IsNullOrWhiteSpace(staffId)) return ProfileFailure(MedicalProfileError.InvalidActor);
         if (await store.PatientAsync(id, ct) is null) return ProfileFailure(MedicalProfileError.PatientNotFound);
         var profile = await store.ProfileAsync(id, ct);
@@ -109,6 +117,12 @@ public sealed class PatientRecordsService(IPatientRecordsStore store, TimeProvid
         catch (InvalidOperationException) { return ProfileFailure(MedicalProfileError.InvalidEntryReference); }
         if (isNew) store.Add(profile);
         else store.ExpectVersion(profile, input.ExpectedRowVersion!);
+        auditWriter.Append(new AuditAppendRequest(staffId, "patient.clinical-profile.update", "patient",
+            id.ToString("N"), id, AuditOutcome.Succeeded, null,
+            [new KeyValuePair<string, string>("entry-count",
+                (profile.Allergies.Count(x => x.IsActive) + profile.ChronicConditions.Count(x => x.IsActive)
+                 + profile.Medications.Count(x => x.IsActive) + profile.Surgeries.Count(x => x.IsActive)
+                 + profile.FamilyHistory.Count(x => x.IsActive)).ToString())]));
         try { await store.SaveAsync(ct); }
         catch (PersistenceConcurrencyException) { return ProfileFailure(MedicalProfileError.ProfileChanged); }
         catch (PatientRecordConflictException) { return ProfileFailure(MedicalProfileError.ProfileChanged); }

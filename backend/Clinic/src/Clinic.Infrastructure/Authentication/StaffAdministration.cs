@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Clinic.Application.Audit;
+using Clinic.Domain.Enums;
 using Clinic.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -6,10 +8,13 @@ using Microsoft.EntityFrameworkCore;
 namespace Clinic.Infrastructure.Authentication;
 
 // Local operator API only. Never registered as an HTTP endpoint.
-public sealed class StaffAdministration(ClinicDbContext db, UserManager<StaffUser> users, RoleManager<IdentityRole> roles)
+// Administrative changes append staff.* audit events into the same transaction as the change.
+public sealed class StaffAdministration(ClinicDbContext db, UserManager<StaffUser> users, RoleManager<IdentityRole> roles,
+    IAuditMutationWriter auditWriter)
 {
     public async Task<string> ProvisionFirstDoctorAsync(string userName, string password, Guid doctorId, Guid[] scopes)
     {
+        using var auditScope = auditWriter.BeginMutation();
         await using var tx = await db.Database.BeginTransactionAsync();
         await StaffAuthentication.LockAsync(db, "initial-provisioning");
         await ValidateScopesAsync(scopes);
@@ -21,7 +26,7 @@ public sealed class StaffAdministration(ClinicDbContext db, UserManager<StaffUse
             var actual = (await users.GetClaimsAsync(existing)).Select(c => c.Type + "=" + c.Value).Order().ToArray();
             if (existing.AssociatedDoctorId != doctorId || !(await users.GetRolesAsync(existing)).SequenceEqual(["Doctor"]) ||
                 !expected.SequenceEqual(actual)) throw new InvalidOperationException("Existing account differs; use the explicit administrative procedure.");
-            return existing.Id; // No credential, grant, key, stamp or status changes on rerun.
+            return existing.Id; // No credential, grant, key, stamp or status changes on rerun: no audit event either.
         }
         if (await db.Users.AnyAsync()) throw new InvalidOperationException("Initial provisioning is only available before the first staff account exists.");
         foreach (var role in StaffAuthentication.Roles)
@@ -30,13 +35,20 @@ public sealed class StaffAdministration(ClinicDbContext db, UserManager<StaffUse
         StaffAuthentication.Require(await users.CreateAsync(user, password));
         StaffAuthentication.Require(await users.AddToRoleAsync(user, "Doctor"));
         StaffAuthentication.Require(await users.AddClaimsAsync(user, Grants(StaffAuthentication.InitialPermissions, scopes)));
+        // Local CLI provisioning has no authenticated actor: the null actor is accurate and documented.
+        auditWriter.Append(new AuditAppendRequest(null, "staff.provision", "staff-account",
+            user.Id, null, AuditOutcome.Succeeded, null,
+            [new KeyValuePair<string, string>("scope-count", scopes.Length.ToString())]));
+        await db.SaveChangesAsync();
         await tx.CommitAsync();
         return user.Id;
     }
 
     public async Task ChangeAsync(string userId, string operation, string? password = null,
-        string[]? approvedRoles = null, string[]? permissions = null, Guid[]? scopes = null, Guid[]? patientScopes = null)
+        string[]? approvedRoles = null, string[]? permissions = null, Guid[]? scopes = null, Guid[]? patientScopes = null,
+        string? actor = null)
     {
+        using var auditScope = auditWriter.BeginMutation();
         await using var tx = await db.Database.BeginTransactionAsync();
         await StaffAuthentication.LockAsync(db, userId);
         var user = await users.FindByIdAsync(userId) ?? throw new ArgumentException("Staff ID does not exist.");
@@ -74,6 +86,30 @@ public sealed class StaffAdministration(ClinicDbContext db, UserManager<StaffUse
         user.ChallengeId = null;
         user.ChallengeExpiresAt = null;
         StaffAuthentication.Require(await users.UpdateSecurityStampAsync(user));
+        // Never audited: passwords, tokens, TOTP/recovery values, security stamps, raw grant lists.
+        var actionCode = operation switch
+        {
+            "disable" => "staff.disable",
+            "revoke" => "staff.sessions-revoke",
+            "reset-password" => "staff.password-reset",
+            "reset-mfa" => "staff.mfa-reset",
+            "set-grants" => "staff.grants.change",
+            _ => null
+        };
+        if (actionCode is not null)
+        {
+            IReadOnlyList<KeyValuePair<string, string>>? metadata = operation == "set-grants"
+                ? new[]
+                {
+                    new KeyValuePair<string, string>("role-count", approvedRoles!.Length.ToString()),
+                    new KeyValuePair<string, string>("permission-count", permissions!.Length.ToString()),
+                    new KeyValuePair<string, string>("patient-scope-count", (patientScopes ?? []).Length.ToString()),
+                }
+                : null;
+            auditWriter.Append(new AuditAppendRequest(actor, actionCode, "staff-account",
+                user.Id, null, AuditOutcome.Succeeded, null, metadata));
+        }
+        await db.SaveChangesAsync();
         await tx.CommitAsync();
     }
 

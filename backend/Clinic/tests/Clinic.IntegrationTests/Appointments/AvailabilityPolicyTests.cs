@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Clinic.Application.Abstractions;
+using Clinic.Infrastructure.Audit;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Data.Common;
 
@@ -34,7 +35,7 @@ public sealed class AvailabilityPolicyTests(SqlDatabaseFixture database) : IClas
     private AppointmentBookingService Booking(ClinicDbContext context) => new(
         new PatientRepository(context), new DoctorRepository(context), new AppointmentRepository(context),
         context, new SqlBookingTransaction(context), new WorkingScheduleRepository(context, TestWorkingHours.ClinicTimeZone),
-        _clock, Policy);
+        _clock, Policy, new AuditEventStore(context, TimeProvider.System));
 
     private async Task<(Doctor Doctor, Patient Patient)> SeedAsync(bool periods = true)
     {
@@ -274,7 +275,7 @@ public sealed class AvailabilityPolicyTests(SqlDatabaseFixture database) : IClas
         var transaction = new AdvancingTransaction(new SqlBookingTransaction(context), () => _clock.Now = At(8, 1));
         var booking = new AppointmentBookingService(new PatientRepository(context), new DoctorRepository(context),
             new AppointmentRepository(context), context, transaction,
-            new WorkingScheduleRepository(context, TestWorkingHours.ClinicTimeZone), _clock, Policy);
+            new WorkingScheduleRepository(context, TestWorkingHours.ClinicTimeZone), _clock, Policy, new AuditEventStore(context, TimeProvider.System));
         Assert.Equal(BookingError.InsufficientNotice,
             (await booking.BookAsync(new(patient.Id, doctor.Id, At(9), AppointmentType.Consultation))).Error);
         Assert.False(await context.Appointments.AnyAsync(x => x.DoctorId == doctor.Id));
