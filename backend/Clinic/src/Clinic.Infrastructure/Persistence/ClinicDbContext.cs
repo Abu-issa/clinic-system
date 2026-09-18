@@ -25,6 +25,8 @@ public sealed class ClinicDbContext : Microsoft.AspNetCore.Identity.EntityFramew
     Set<AppointmentReschedule>();
     public DbSet<Medication> Medications => Set<Medication>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+    public DbSet<PatientAttachment> PatientAttachments => Set<PatientAttachment>();
+    public DbSet<ClinicalTestRequest> ClinicalTestRequests => Set<ClinicalTestRequest>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -33,6 +35,9 @@ public sealed class ClinicDbContext : Microsoft.AspNetCore.Identity.EntityFramew
         MedicationCatalogMapping.Configure(modelBuilder);
         PrescriptionMapping.Configure(modelBuilder);
         AuditMapping.Configure(modelBuilder);
+        FileStorageMapping.Configure(modelBuilder);
+        AttachmentMapping.Configure(modelBuilder);
+        ClinicalTestMapping.Configure(modelBuilder);
 
         modelBuilder.Entity<Patient>(patient =>
         {

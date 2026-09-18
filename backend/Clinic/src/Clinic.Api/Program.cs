@@ -1,5 +1,6 @@
 using Clinic.Application.Audit;
 using Clinic.Api.Audit;
+using Clinic.Application.Storage;
 using Clinic.Application.Patients;
 using Clinic.Application.Visits;
 using Clinic.Application.Medications;
@@ -24,9 +25,17 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers().AddJsonOptions(options =>
-    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter<AppointmentType>()));
+{
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter<AppointmentType>());
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter<ClinicalTestCategory>(allowIntegerValues: false));
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter<ClinicalTestStatus>(allowIntegerValues: false));
+});
 builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<AppointmentType>()));
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<AppointmentType>());
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<ClinicalTestCategory>(allowIntegerValues: false));
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter<ClinicalTestStatus>(allowIntegerValues: false));
+});
 builder.Services.AddOptions<BookingPolicySettings>()
     .BindConfiguration("BookingPolicy")
     .Validate(settings => settings.IsValid(), "Invalid booking policy durations, interval, notice, or horizon.")
@@ -52,6 +61,42 @@ builder.Services.AddOptions<PrintLicenseOptions>()
         $"PrintLicensing:PdfLicenseType is required and must be one of: {PrintLicenseOptions.AllowedValues}.")
     .ValidateOnStart();
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<PrintLicenseOptions>>().Value);
+// Private file storage (Phase 1 foundation): local filesystem provider only; a production
+// object-storage provider is a later explicit decision. Local storage in production requires
+// the reviewed FileStorage:AllowLocalInProduction opt-in, and the private root must never sit
+// inside wwwroot (where static-file serving could expose clinical bytes).
+builder.Services.AddOptions<FileStorageOptions>()
+    .BindConfiguration(FileStorageOptions.SectionName)
+    .Validate(storage => storage.IsValid(),
+        $"FileStorage configuration is invalid: Provider must be 'Local', LocalRoot must be a bounded safe directory path, and MaxFileSizeBytes must be between 1 and {FileStorageOptions.AbsoluteMaxFileSizeBytes}.")
+    .Validate(storage => !isProduction || storage.Provider != "Local" || storage.AllowLocalInProduction,
+        "Production cannot serve private files from local storage without the explicit FileStorage:AllowLocalInProduction=true opt-in.")
+    .Validate(storage =>
+    {
+        var webRoot = builder.Environment.WebRootPath
+            ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+        return storage.IsOutsideWebRoot(webRoot);
+    }, "FileStorage:LocalRoot must not be inside wwwroot; stored clinical files are never statically served.")
+    .ValidateOnStart();
+builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<FileStorageOptions>>().Value);
+builder.Services.AddSingleton<Clinic.Application.Storage.IFileStorage, Clinic.Infrastructure.Storage.LocalFileStorage>();
+builder.Services.AddScoped<Clinic.Application.Storage.IStoredFileStore, Clinic.Infrastructure.Storage.StoredFileStore>();
+builder.Services.AddScoped<Clinic.Application.Storage.StoredFileService>();
+// Clinical attachments (Phase 2): narrow Doctor/DoctorAssistant clinical surface with explicit
+// persisted permissions; the feature limit must stay within the storage foundation's absolute max.
+builder.Services.AddOptions<Clinic.Application.Attachments.AttachmentOptions>()
+    .BindConfiguration(Clinic.Application.Attachments.AttachmentOptions.SectionName)
+    .Validate(o => o.IsValid(),
+        $"Attachments:MaxFileSizeBytes must be between 1 and {FileStorageOptions.AbsoluteMaxFileSizeBytes}.")
+    .Validate(o => o.MaxFileSizeBytes <= (builder.Configuration.GetValue<long?>("FileStorage:MaxFileSizeBytes")
+            ?? FileStorageOptions.DefaultMaxFileSizeBytes),
+        "Attachments:MaxFileSizeBytes must not exceed FileStorage:MaxFileSizeBytes.")
+    .ValidateOnStart();
+builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<Clinic.Application.Attachments.AttachmentOptions>>().Value);
+builder.Services.AddScoped<Clinic.Application.Attachments.IAttachmentStore, Clinic.Infrastructure.Repositories.AttachmentStore>();
+builder.Services.AddScoped<Clinic.Application.Attachments.AttachmentService>();
+builder.Services.AddScoped<Clinic.Application.ClinicalTests.IClinicalTestStore, ClinicalTestStore>();
+builder.Services.AddScoped<Clinic.Application.ClinicalTests.ClinicalTestService>();
 builder.Services.AddSingleton(provider => new BookingPolicy(
     provider.GetRequiredService<IOptions<BookingPolicySettings>>().Value,
     provider.GetRequiredService<TimeZoneInfo>()));
@@ -162,6 +207,17 @@ builder.Services.AddAuthorization(options =>
     PatientPolicy("VisitFinalize", "visits.finalize", ["Doctor"]);
     PatientPolicy("VisitAmend", "visits.amend", ["Doctor"]);
     PatientPolicy("VitalWrite", "vitals.write", ["Doctor", "DoctorAssistant"]);
+
+    // Diagnostic orders: only Doctors create; explicitly authorized assistants may read.
+    PatientPolicy("ClinicalTestRead", "tests.read", ["Doctor", "DoctorAssistant"]);
+    PatientPolicy("ClinicalTestWrite", "tests.write", ["Doctor"]);
+
+    // Clinical attachments: intentionally narrow — Doctor or DoctorAssistant with explicit
+    // persisted attachments.* permission and exact patient scope. Receptionist never gains
+    // clinical attachment access; no Admin role exists. Visit-level uploads additionally
+    // enforce persisted doctor authority in the controller for Doctors.
+    PatientPolicy("AttachmentRead", "attachments.read", ["Doctor", "DoctorAssistant"]);
+    PatientPolicy("AttachmentWrite", "attachments.write", ["Doctor", "DoctorAssistant"]);
 
     // Prescriptions: Doctor only, exact persisted patient scope, explicit operation permission.
     void PrescriptionPolicy(string name, string permission)

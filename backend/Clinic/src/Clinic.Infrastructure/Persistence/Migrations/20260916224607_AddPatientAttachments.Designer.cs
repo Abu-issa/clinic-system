@@ -4,6 +4,7 @@ using Clinic.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Clinic.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ClinicDbContext))]
-    partial class ClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260916224607_AddPatientAttachments")]
+    partial class AddPatientAttachments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -177,71 +180,6 @@ namespace Clinic.Infrastructure.Persistence.Migrations
                     b.HasIndex("ResourceType", "ResourceId", "OccurredAtUtc");
 
                     b.ToTable("AuditEvents", (string)null);
-                });
-
-            modelBuilder.Entity("Clinic.Domain.Entities.ClinicalTestRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Category")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ClinicalInstructions")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("RequestedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid>("RequestedByDoctorId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("ReviewedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("ReviewedByDoctorId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TestName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTimeOffset?>("UploadedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("VisitId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RequestedByDoctorId");
-
-                    b.HasIndex("ReviewedByDoctorId");
-
-                    b.HasIndex("PatientId", "RequestedAtUtc");
-
-                    b.HasIndex("VisitId", "RequestedAtUtc");
-
-                    b.ToTable("ClinicalTestRequests", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_ClinicalTestRequests_Category", "[Category] IN (0, 1)");
-
-                            t.HasCheckConstraint("CK_ClinicalTestRequests_Lifecycle", "[Status] = 0 AND [UploadedAtUtc] IS NULL AND [ReviewedAtUtc] IS NULL AND [ReviewedByDoctorId] IS NULL");
-                        });
                 });
 
             modelBuilder.Entity("Clinic.Domain.Entities.Doctor", b =>
@@ -1502,31 +1440,6 @@ namespace Clinic.Infrastructure.Persistence.Migrations
                         .HasForeignKey("AppointmentId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("Clinic.Domain.Entities.ClinicalTestRequest", b =>
-                {
-                    b.HasOne("Clinic.Domain.Entities.Patient", null)
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Clinic.Domain.Entities.Doctor", null)
-                        .WithMany()
-                        .HasForeignKey("RequestedByDoctorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Clinic.Domain.Entities.Doctor", null)
-                        .WithMany()
-                        .HasForeignKey("ReviewedByDoctorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Clinic.Domain.Entities.Visit", null)
-                        .WithMany()
-                        .HasForeignKey("VisitId")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Clinic.Domain.Entities.DoctorDayClosure", b =>

@@ -4,6 +4,7 @@ using Clinic.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Clinic.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ClinicDbContext))]
-    partial class ClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260916214417_AddFileStorageFoundation")]
+    partial class AddFileStorageFoundation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -177,71 +180,6 @@ namespace Clinic.Infrastructure.Persistence.Migrations
                     b.HasIndex("ResourceType", "ResourceId", "OccurredAtUtc");
 
                     b.ToTable("AuditEvents", (string)null);
-                });
-
-            modelBuilder.Entity("Clinic.Domain.Entities.ClinicalTestRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Category")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ClinicalInstructions")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("RequestedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid>("RequestedByDoctorId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("ReviewedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("ReviewedByDoctorId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TestName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTimeOffset?>("UploadedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("VisitId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RequestedByDoctorId");
-
-                    b.HasIndex("ReviewedByDoctorId");
-
-                    b.HasIndex("PatientId", "RequestedAtUtc");
-
-                    b.HasIndex("VisitId", "RequestedAtUtc");
-
-                    b.ToTable("ClinicalTestRequests", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_ClinicalTestRequests_Category", "[Category] IN (0, 1)");
-
-                            t.HasCheckConstraint("CK_ClinicalTestRequests_Lifecycle", "[Status] = 0 AND [UploadedAtUtc] IS NULL AND [ReviewedAtUtc] IS NULL AND [ReviewedByDoctorId] IS NULL");
-                        });
                 });
 
             modelBuilder.Entity("Clinic.Domain.Entities.Doctor", b =>
@@ -527,40 +465,6 @@ namespace Clinic.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_PatientAllergies_Verification", "([ReviewStatus] = 1 AND [VerifiedAtUtc] IS NULL AND [VerifiedByStaffId] IS NULL) OR ([ReviewStatus] = 2 AND [VerifiedAtUtc] IS NOT NULL AND [VerifiedByStaffId] IS NOT NULL)");
                         });
-                });
-
-            modelBuilder.Entity("Clinic.Domain.Entities.PatientAttachment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedByStaffId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("StoredFileId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("VisitId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StoredFileId")
-                        .IsUnique();
-
-                    b.HasIndex("PatientId", "CreatedAtUtc");
-
-                    b.HasIndex("VisitId", "CreatedAtUtc");
-
-                    b.ToTable("PatientAttachments", (string)null);
                 });
 
             modelBuilder.Entity("Clinic.Domain.Entities.PatientChronicCondition", b =>
@@ -1504,31 +1408,6 @@ namespace Clinic.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Clinic.Domain.Entities.ClinicalTestRequest", b =>
-                {
-                    b.HasOne("Clinic.Domain.Entities.Patient", null)
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Clinic.Domain.Entities.Doctor", null)
-                        .WithMany()
-                        .HasForeignKey("RequestedByDoctorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Clinic.Domain.Entities.Doctor", null)
-                        .WithMany()
-                        .HasForeignKey("ReviewedByDoctorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Clinic.Domain.Entities.Visit", null)
-                        .WithMany()
-                        .HasForeignKey("VisitId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
             modelBuilder.Entity("Clinic.Domain.Entities.DoctorDayClosure", b =>
                 {
                     b.HasOne("Clinic.Domain.Entities.Doctor", null)
@@ -1554,28 +1433,6 @@ namespace Clinic.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ProfileId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("Clinic.Domain.Entities.PatientAttachment", b =>
-                {
-                    b.HasOne("Clinic.Domain.Entities.Patient", null)
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Clinic.Domain.Entities.StoredFile", "File")
-                        .WithMany()
-                        .HasForeignKey("StoredFileId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Clinic.Domain.Entities.Visit", null)
-                        .WithMany()
-                        .HasForeignKey("VisitId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("File");
                 });
 
             modelBuilder.Entity("Clinic.Domain.Entities.PatientChronicCondition", b =>

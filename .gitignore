@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Clinic private local file storage runtime data (development)
+backend/Clinic/src/Clinic.Api/data/
