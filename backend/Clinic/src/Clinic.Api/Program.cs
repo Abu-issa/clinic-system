@@ -24,7 +24,8 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers().AddJsonOptions(options =>
+builder.Services.AddSingleton<Clinic.Api.StaffMvc.StaffText>();
+builder.Services.AddControllersWithViews().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter<AppointmentType>());
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter<ClinicalTestCategory>(allowIntegerValues: false));
@@ -97,6 +98,7 @@ builder.Services.AddScoped<Clinic.Application.Attachments.IAttachmentStore, Clin
 builder.Services.AddScoped<Clinic.Application.Attachments.AttachmentService>();
 builder.Services.AddScoped<Clinic.Application.ClinicalTests.IClinicalTestStore, ClinicalTestStore>();
 builder.Services.AddScoped<Clinic.Application.ClinicalTests.ClinicalTestService>();
+builder.Services.AddScoped<Clinic.Application.ClinicalTests.ClinicalTestLifecycleService>();
 builder.Services.AddSingleton(provider => new BookingPolicy(
     provider.GetRequiredService<IOptions<BookingPolicySettings>>().Value,
     provider.GetRequiredService<TimeZoneInfo>()));
@@ -211,6 +213,7 @@ builder.Services.AddAuthorization(options =>
     // Diagnostic orders: only Doctors create; explicitly authorized assistants may read.
     PatientPolicy("ClinicalTestRead", "tests.read", ["Doctor", "DoctorAssistant"]);
     PatientPolicy("ClinicalTestWrite", "tests.write", ["Doctor"]);
+    PatientPolicy("ClinicalTestResultWrite", "tests.write", ["Doctor", "DoctorAssistant"]);
 
     // Clinical attachments: intentionally narrow — Doctor or DoctorAssistant with explicit
     // persisted attachments.* permission and exact patient scope. Receptionist never gains
@@ -342,6 +345,30 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseWhen(context => context.Request.Path.StartsWithSegments("/staff") ||
+    Clinic.Api.StaffMvc.StaffUiErrors.IsStaffDownload(context), staff =>
+{
+    staff.UseRequestLocalization(new RequestLocalizationOptions()
+        .SetDefaultCulture("ar").AddSupportedCultures("ar", "en").AddSupportedUICultures("ar", "en"));
+    staff.Use(async (context, next) =>
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        context.Response.Headers.ContentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+        try { await next(); }
+        catch (Exception ex) when (!context.Response.HasStarted && !context.RequestAborted.IsCancellationRequested)
+        {
+            // Log only the exception type: provider messages may contain clinical data.
+            context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("StaffMvc")
+                .LogError("Staff page failed ({ExceptionType}).", ex.GetType().Name);
+            await Clinic.Api.StaffMvc.StaffUiErrors.WriteAsync(context, 500);
+        }
+    });
+    staff.UseStatusCodePages(context => Clinic.Api.StaffMvc.StaffUiErrors.WriteAsync(
+        context.HttpContext, context.HttpContext.Response.StatusCode));
+});
 
 app.Use(async (context, next) =>
 {
@@ -361,6 +388,9 @@ if (args.Length > 0 && args[0] == "staff")
     await StaffLocalCommand.RunAsync(args, app.Services);
     return;
 }
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 app.Run();
 
 static void ConfigureCookie(CookieAuthenticationOptions options, string name, int minutes)

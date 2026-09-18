@@ -55,7 +55,10 @@ public sealed class AttachmentStore(ClinicDbContext db) : IAttachmentStore
     public void DiscardChanges()
     {
         foreach (var entry in db.ChangeTracker.Entries()
-                     .Where(x => x.Entity is StoredFile or PatientAttachment).ToArray())
+                     .Where(x => x.Entity is StoredFile or PatientAttachment)
+                     // Detach dependents before principals: failed SQL batches may have
+                     // materialized relationship fixup before the rowversion conflict.
+                     .OrderBy(x => x.Entity is PatientAttachment ? 0 : 1).ToArray())
             entry.State = EntityState.Detached;
     }
 }

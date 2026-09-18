@@ -8,6 +8,14 @@ namespace Clinic.Application.ClinicalTests;
 // trusted principal; doctor association and visit ownership are re-read here from persistence.
 public sealed class ClinicalTestService(IClinicalTestStore store, IAuditMutationWriter audit, TimeProvider clock)
 {
+    // Minimal patient identity is disclosed only inside an authorized, audited test page.
+    public Task<ClinicalTestPatientContext?> PatientContextAsync(Guid patientId, CancellationToken ct) => store.PatientContextAsync(patientId, ct);
+
+    public async Task<IReadOnlyList<ClinicalTestVisitChoice>> VisitChoicesAsync(Guid patientId, string actor, CancellationToken ct)
+    {
+        var doctor = await store.AssociatedDoctorAsync(actor, ct);
+        return doctor is null || doctor == Guid.Empty ? [] : await store.VisitChoicesAsync(patientId, doctor.Value, ct);
+    }
     public async Task<ClinicalTestResult> CreateAsync(CreateClinicalTestRequest input, string actor, CancellationToken ct = default)
     {
         if (input.PatientId == Guid.Empty || input.VisitId == Guid.Empty || !Enum.IsDefined(input.Category) || string.IsNullOrWhiteSpace(actor))

@@ -11,8 +11,7 @@ internal static class ClinicalTestMapping
         request.ToTable("ClinicalTestRequests", table =>
         {
             table.HasCheckConstraint("CK_ClinicalTestRequests_Category", "[Category] IN (0, 1)");
-            // Phase 2 must deliberately extend this constraint alongside real result transitions.
-            table.HasCheckConstraint("CK_ClinicalTestRequests_Lifecycle", "[Status] = 0 AND [UploadedAtUtc] IS NULL AND [ReviewedAtUtc] IS NULL AND [ReviewedByDoctorId] IS NULL");
+            table.HasCheckConstraint("CK_ClinicalTestRequests_Lifecycle", "([Status] = 0 AND [UploadedAtUtc] IS NULL AND [ReviewedAtUtc] IS NULL AND [ReviewedByDoctorId] IS NULL) OR ([Status] IN (1, 2) AND [UploadedAtUtc] IS NOT NULL AND [RequestedAtUtc] <= [UploadedAtUtc] AND [ReviewedAtUtc] IS NULL AND [ReviewedByDoctorId] IS NULL) OR ([Status] = 3 AND [UploadedAtUtc] IS NOT NULL AND [ReviewedAtUtc] IS NOT NULL AND [ReviewedByDoctorId] IS NOT NULL AND [RequestedAtUtc] <= [UploadedAtUtc] AND [UploadedAtUtc] <= [ReviewedAtUtc])");
         });
         request.HasKey(x => x.Id);
         request.Property(x => x.Id).ValueGeneratedNever();
@@ -27,6 +26,14 @@ internal static class ClinicalTestMapping
         request.HasOne<Doctor>().WithMany().HasForeignKey(x => x.ReviewedByDoctorId).OnDelete(DeleteBehavior.Restrict);
         request.HasIndex(x => new { x.PatientId, x.RequestedAtUtc });
         request.HasIndex(x => new { x.VisitId, x.RequestedAtUtc });
+        var result = model.Entity<ClinicalTestResultAttachment>();
+        result.ToTable("ClinicalTestResultAttachments");
+        result.HasKey(x => x.Id);
+        result.Property(x => x.Id).ValueGeneratedNever();
+        result.HasOne<ClinicalTestRequest>().WithMany().HasForeignKey(x => x.ClinicalTestRequestId).OnDelete(DeleteBehavior.Restrict);
+        result.HasOne<PatientAttachment>().WithMany().HasForeignKey(x => x.PatientAttachmentId).OnDelete(DeleteBehavior.Restrict);
+        result.HasIndex(x => x.PatientAttachmentId).IsUnique();
+        result.HasIndex(x => new { x.ClinicalTestRequestId, x.LinkedAtUtc });
         // No global work-queue endpoints yet: status/category-only indexes are deferred.
     }
 }

@@ -314,7 +314,8 @@ public sealed partial class StaffClinicalTestsHttpTests(SqlDatabaseFixture datab
         Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
         var text = await detail.Content.ReadAsStringAsync();
         Assert.Contains("SensitiveInstructions", text);
-        foreach (var hidden in new[] { "rowVersion", "requestedByDoctorId", "SensitiveName", "storageKey", "staff" })
+        Assert.Equal(8, jsonVersion(text).Length);
+        foreach (var hidden in new[] { "requestedByDoctorId", "SensitiveName", "storageKey", "staff" })
             Assert.DoesNotContain(hidden, text);
         Assert.True(detail.Headers.CacheControl?.NoStore);
         await using var db = database.CreateContext();

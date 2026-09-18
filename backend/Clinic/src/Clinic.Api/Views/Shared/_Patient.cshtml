@@ -1,0 +1,6 @@
+@model ClinicalTestPatientContext
+<section class="patient-banner mb-4" aria-label="@T["Patient"]">
+    <div><span class="eyebrow">@T["Patient"]</span><div class="patient-name"><bdi>@Model.FullName</bdi></div></div>
+    <div><span class="eyebrow">@(Model.MedicalRecordNumber is null ? T["PatientReference"] : T["Record"])</span>
+        <div><bdi>@(Model.MedicalRecordNumber ?? Model.PatientId.ToString())</bdi></div></div>
+</section>

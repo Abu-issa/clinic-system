@@ -47,6 +47,21 @@ public sealed class AttachmentService(
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.Content);
         await using var ownedContent = request.Content;
+        return await UploadCoreAsync(request, null, cancellationToken);
+    }
+
+    // Application-internal enlistment: the callback may stage clinical rows/events, never save.
+    // Both stores and the audit writer use the same scoped unit of work. The lifecycle
+    // service owns the opened input stream (including pre-upload rejection paths).
+    internal Task<AttachmentUploadResult> UploadClinicalResultAsync(UploadAttachmentRequest request,
+        Action<PatientAttachment> enlist, CancellationToken cancellationToken) =>
+        UploadCoreAsync(request, enlist, cancellationToken);
+
+    private async Task<AttachmentUploadResult> UploadCoreAsync(UploadAttachmentRequest request,
+        Action<PatientAttachment>? enlist, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.Content);
 
         // Cheap resource validation first: never stream bytes for a doomed request.
         if (!await store.PatientExistsAsync(request.PatientId, cancellationToken))
@@ -79,6 +94,7 @@ public sealed class AttachmentService(
             {
                 using var auditScope = auditWriter.BeginMutation();
                 store.Add(file, attachment);
+                enlist?.Invoke(attachment);
                 auditWriter.Append(new AuditAppendRequest(request.ActorStaffId, "file.upload", "attachment",
                     attachment.Id.ToString("N"), request.PatientId, AuditOutcome.Succeeded, null, null));
                 await store.SaveAsync(cancellationToken);

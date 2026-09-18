@@ -14,7 +14,7 @@ namespace Clinic.IntegrationTests.Api;
 
 public sealed partial class StaffAttachmentHttpTests
 {
-    private sealed class BodyMeter : IStartupFilter
+    internal sealed class BodyMeter : IStartupFilter
     {
         public long Bytes;
         public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>

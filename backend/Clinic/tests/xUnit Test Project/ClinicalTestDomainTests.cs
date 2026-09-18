@@ -72,12 +72,12 @@ public sealed class ClinicalTestDomainTests
     public void InvalidCategoryIsRejected(int category) => Assert.Throws<ArgumentException>(() => Create(category: (ClinicalTestCategory)category));
 
     [Fact]
-    public void NoPublicSettersTransitionsOrDeleteSurface()
+    public void OnlyExplicitLifecycleCommandsAndNoPublicSetters()
     {
         var type = typeof(ClinicalTestRequest);
         Assert.All(type.GetProperties(), property => Assert.False(property.SetMethod?.IsPublic == true));
-        Assert.DoesNotContain(type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance |
-            System.Reflection.BindingFlags.DeclaredOnly), x => !x.IsSpecialName);
+        Assert.Equal(new[] { "CompleteReview", "RecordResult", "StartReview" }, type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance |
+            System.Reflection.BindingFlags.DeclaredOnly).Where(x => !x.IsSpecialName).Select(x => x.Name).OrderBy(x => x));
         Assert.DoesNotContain(type.GetProperties(), x => x.Name.Contains("Attachment") || x.Name.Contains("StoredFile"));
     }
 }

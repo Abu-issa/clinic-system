@@ -113,19 +113,20 @@ public sealed class StaffAttachmentsController(
     }
 
     [HttpGet("attachments/{attachmentId:guid}/download")]
+    [Clinic.Api.StaffMvc.StaffDownloadUi]
     public async Task<IResult> Download(Guid patientId, Guid attachmentId, CancellationToken ct)
     {
-        if (!await Allowed(patientId, "AttachmentRead")) return Results.Forbid();
+        if (!await Allowed(patientId, "AttachmentRead")) return DownloadError(403, null);
         // Server-side resolution only: patient + attachment ID; the storage key never comes
         // from the client and foreign-patient attachments stay hidden.
         var reference = await store.DownloadAsync(patientId, attachmentId, ct);
-        if (reference is null) return Error(404, "attachment_not_found", "The attachment request could not be completed.");
+        if (reference is null) return DownloadError(404, "attachment_not_found");
 
         var content = await fileStorage.OpenReadAsync(reference.StorageKey, ct);
         if (content is null)
             // Metadata without its object is an integrity failure: never 200, never empty bytes,
             // never a successful download audit event, never a physical path disclosure.
-            return Error(503, "backing_object_missing", "The attachment request could not be completed.");
+            return DownloadError(503, "backing_object_missing");
 
         try
         {
@@ -136,7 +137,7 @@ public sealed class StaffAttachmentsController(
             if (auditFailure is not null)
             {
                 await content.DisposeAsync();
-                return auditFailure;
+                return IsStaffUi ? Clinic.Api.StaffMvc.StaffUiErrors.HttpResult(500) : auditFailure;
             }
             Response.Headers.ContentDisposition = BuildDisposition(reference);
             Response.Headers.XContentTypeOptions = "nosniff";
@@ -150,6 +151,14 @@ public sealed class StaffAttachmentsController(
     }
 
     // --- shared helpers ---
+
+    private bool IsStaffUi => Clinic.Api.StaffMvc.StaffUiErrors.IsStaffDownload(HttpContext);
+
+    // Opt-in staff presentation only; authorization, storage lookup and the fail-closed
+    // file.download audit above are identical for both presentations.
+    private IResult DownloadError(int status, string? code) => IsStaffUi
+        ? Clinic.Api.StaffMvc.StaffUiErrors.HttpResult(status)
+        : Error(status, code ?? "attachment_forbidden", "The attachment request could not be completed.");
 
     private async Task<(string? Actor, IResult? Failure)> PrepareUpload(Guid patientId, IFormFile? file, CancellationToken ct)
     {

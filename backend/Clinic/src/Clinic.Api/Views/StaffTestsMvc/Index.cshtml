@@ -1,0 +1,42 @@
+@model StaffTestListPage
+@{ ViewData["Title"] = T["Tests"]; }
+<partial name="_Patient" model="Model.Patient" />
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div><h1>@T["Tests"]</h1><p class="text-secondary mb-0">@T["Subtitle"]</p></div>
+    @if (Model.CanCreate) { <a class="btn btn-primary" asp-action="Create" asp-route-patientId="@Model.Patient.PatientId" asp-route-culture="@T.Culture">@T["Create"]</a> }
+</div>
+<form method="get" class="card p-3 mb-4">
+    <input type="hidden" name="culture" value="@T.Culture" />
+    <input type="hidden" name="pageSize" value="@Model.PageSize" />
+    <div class="row g-3 align-items-end">
+        <div class="col-sm-4"><label for="category" class="form-label">@T["Category"]</label>
+            <select id="category" name="category" class="form-select"><option value="">@T["All"]</option>
+                @foreach (var c in Enum.GetValues<ClinicalTestCategory>()) { <option value="@c" selected="@(Model.Category == c)">@T[c.ToString()]</option> }
+            </select></div>
+        <div class="col-sm-4"><label for="status" class="form-label">@T["Status"]</label>
+            <select id="status" name="status" class="form-select"><option value="">@T["All"]</option>
+                @foreach (var s in Enum.GetValues<ClinicalTestStatus>()) { <option value="@s" selected="@(Model.Status == s)">@T[s.ToString()]</option> }
+            </select></div>
+        <div class="col-sm-4"><button class="btn btn-outline-primary" type="submit">@T["Filter"]</button></div>
+    </div>
+</form>
+<div class="card overflow-hidden">
+@if (Model.Items.Count == 0) { <p class="p-4 mb-0">@T["NoTests"]</p> }
+else {
+    <div class="table-responsive"><table class="table align-middle mb-0">
+        <caption class="visually-hidden">@T["Tests"]</caption>
+        <thead><tr><th scope="col">@T["TestName"]</th><th scope="col">@T["Category"]</th><th scope="col">@T["Status"]</th><th scope="col">@T["RequestedAt"]</th><th scope="col">@T["Count"]</th><th scope="col">@T["ReviewedAt"]</th></tr></thead>
+        <tbody>@foreach (var item in Model.Items) {
+            <tr><th scope="row"><a asp-action="Detail" asp-route-patientId="@Model.Patient.PatientId" asp-route-requestId="@item.Id" asp-route-culture="@T.Culture"><bdi>@item.TestName</bdi></a></th>
+                <td>@T[item.Category.ToString()]</td><td><span class="status-badge status-@item.Status">@T[item.Status.ToString()]</span></td>
+                <td><bdi>@T.Date(item.RequestedAtUtc)</bdi></td><td>@item.ResultAttachmentCount</td><td><bdi>@T.Date(item.ReviewedAtUtc)</bdi></td></tr>
+        }</tbody>
+    </table></div>
+}
+</div>
+<nav aria-label="@T["Page"]" class="d-flex align-items-center justify-content-between gap-3 mt-4">
+    <div>@T["Page"] @Model.Page</div><div class="d-flex gap-2">
+        @if (Model.Page > 1) { <a class="btn btn-outline-secondary" asp-action="Index" asp-route-patientId="@Model.Patient.PatientId" asp-route-page="@(Model.Page - 1)" asp-route-pageSize="@Model.PageSize" asp-route-category="@Model.Category" asp-route-status="@Model.Status" asp-route-culture="@T.Culture">@T["Previous"]</a> }
+        @if (Model.Items.Count == Model.PageSize && Model.Page < 1000) { <a class="btn btn-outline-secondary" asp-action="Index" asp-route-patientId="@Model.Patient.PatientId" asp-route-page="@(Model.Page + 1)" asp-route-pageSize="@Model.PageSize" asp-route-category="@Model.Category" asp-route-status="@Model.Status" asp-route-culture="@T.Culture">@T["Next"]</a> }
+    </div>
+</nav>

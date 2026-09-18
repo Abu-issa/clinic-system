@@ -2,8 +2,7 @@ using Clinic.Domain.Enums;
 
 namespace Clinic.Domain.Entities;
 
-// Create-once order. Future result/review transitions require explicit domain methods;
-// Phase 1 deliberately exposes no mutation, deletion, or attachment association.
+// Historical order with explicit, one-way result/review commands.
 public sealed class ClinicalTestRequest
 {
     public const int MaxTestNameLength = 200;
@@ -37,6 +36,33 @@ public sealed class ClinicalTestRequest
     public DateTimeOffset? ReviewedAtUtc { get; private set; }
     public Guid? ReviewedByDoctorId { get; private set; }
     public byte[] RowVersion { get; private set; } = [];
+
+    public void RecordResult(DateTimeOffset now)
+    {
+        if (Status == ClinicalTestStatus.Reviewed) throw new InvalidOperationException("Reviewed requests are immutable.");
+        now = now.ToUniversalTime();
+        if (now < RequestedAtUtc) throw new ArgumentException("Result time precedes request.");
+        if (Status == ClinicalTestStatus.Requested)
+        {
+            Status = ClinicalTestStatus.Uploaded;
+            UploadedAtUtc = now;
+        }
+    }
+
+    public void StartReview()
+    {
+        if (Status != ClinicalTestStatus.Uploaded) throw new InvalidOperationException("Only uploaded requests can enter review.");
+        Status = ClinicalTestStatus.UnderReview;
+    }
+
+    public void CompleteReview(Guid doctorId, DateTimeOffset now)
+    {
+        if (Status != ClinicalTestStatus.UnderReview) throw new InvalidOperationException("Only requests under review can complete review.");
+        if (doctorId == Guid.Empty || now < UploadedAtUtc) throw new ArgumentException("Invalid reviewer or review time.");
+        Status = ClinicalTestStatus.Reviewed;
+        ReviewedByDoctorId = doctorId;
+        ReviewedAtUtc = now.ToUniversalTime();
+    }
 
     private static string? Text(string? value, int max, bool required)
     {

@@ -1,8 +1,10 @@
 using Clinic.Application.Attachments;
+using Clinic.Application.ClinicalTests;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -16,6 +18,7 @@ namespace Clinic.Api.Controllers;
 public sealed class AttachmentUploadGateAttribute : Attribute, IAsyncResourceFilter
 {
     public const long MultipartOverheadBytes = 65_536;
+    internal const string RequestLimitExceededKey = "AttachmentUpload.RequestLimitExceeded";
 
     public async Task OnResourceExecutionAsync(ResourceExecutingContext context, ResourceExecutionDelegate next)
     {
@@ -55,6 +58,30 @@ public sealed class AttachmentUploadGateAttribute : Attribute, IAsyncResourceFil
             context.Result = new ForbidResult();
             return;
         }
+        if (context.RouteData.Values["requestId"] is { } routeRequest)
+        {
+            // The clinical command parses its form explicitly to retain typed size errors.
+            // Otherwise MVC's eager value providers read it even without [FromForm] parameters.
+            context.ValueProviderFactories.RemoveType<FormValueProviderFactory>();
+            context.ValueProviderFactories.RemoveType<FormFileValueProviderFactory>();
+            context.ValueProviderFactories.RemoveType<JQueryFormValueProviderFactory>();
+            if (!(await authorization.AuthorizeAsync(http.User, patientId, "ClinicalTestResultWrite")).Succeeded)
+            {
+                context.Result = new ForbidResult();
+                return;
+            }
+            var actor = http.User.FindFirstValue("staff_id") ?? http.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var service = http.RequestServices.GetRequiredService<ClinicalTestLifecycleService>();
+            var error = await service.CheckUploadAsync(patientId, Guid.Parse(routeRequest.ToString()!),
+                actor!, http.User.IsInRole("Doctor"), http.RequestAborted);
+            if (error != ClinicalTestError.None)
+            {
+                var status = error == ClinicalTestError.DoctorAuthority ? 403 : error == ClinicalTestError.InvalidTransition ? 409 : 404;
+                context.Result = new ObjectResult(new ProblemDetails { Status = status,
+                    Title = "The clinical test request could not be completed." }) { StatusCode = status };
+                return;
+            }
+        }
         if (context.RouteData.Values["visitId"] is { } routeVisit)
         {
             var store = http.RequestServices.GetRequiredService<IAttachmentStore>();
@@ -81,7 +108,14 @@ public sealed class AttachmentUploadGateAttribute : Attribute, IAsyncResourceFil
             }
         }
         var originalBody = http.Request.Body;
-        http.Request.Body = new LimitedRequestStream(originalBody, requestLimit);
+        if (context.RouteData.Values.ContainsKey("requestId") && http.Request.ContentLength > requestLimit)
+        {
+            context.Result = new ObjectResult(new ProblemDetails { Status = 413,
+                Title = "The attachment request is too large.", Extensions = { ["code"] = "file_too_large" } }) { StatusCode = 413 };
+            return;
+        }
+        http.Request.Body = new LimitedRequestStream(originalBody, requestLimit,
+            () => http.Items[RequestLimitExceededKey] = true);
         try
         {
             var executed = await next();
@@ -97,7 +131,7 @@ public sealed class AttachmentUploadGateAttribute : Attribute, IAsyncResourceFil
 
     // Bounds total actual multipart bytes even on hosts without a mutable server size feature.
     // Does not own the server request stream and never buffers or seeks.
-    private sealed class LimitedRequestStream(Stream inner, long limit) : Stream
+    private sealed class LimitedRequestStream(Stream inner, long limit, Action exceeded) : Stream
     {
         private long consumed;
         public override bool CanRead => true;
@@ -108,7 +142,11 @@ public sealed class AttachmentUploadGateAttribute : Attribute, IAsyncResourceFil
         private int Count(int read)
         {
             consumed += read;
-            if (consumed > limit) throw new BadHttpRequestException("Attachment request limit exceeded.", 413);
+            if (consumed > limit)
+            {
+                exceeded();
+                throw new BadHttpRequestException("Attachment request limit exceeded.", 413);
+            }
             return read;
         }
         private int Allow(int requested) => (int)Math.Min(requested, Math.Max(1, limit - consumed + 1));

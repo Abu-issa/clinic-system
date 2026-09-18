@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="@T.Culture" dir="@(T.IsArabic ? "rtl" : "ltr")">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] · @T["Clinic"]</title>
+    <link rel="stylesheet" href="~/vendor/bootstrap/@(T.IsArabic ? "bootstrap.rtl.min.css" : "bootstrap.min.css")" />
+    <link rel="stylesheet" href="~/staff-assets/tests.css" asp-append-version="true" />
+    <script src="~/staff-assets/tests.js" asp-append-version="true" defer></script>
+</head>
+<body>
+    <a href="#main" class="visually-hidden-focusable p-3">@T["Skip"]</a>
+    <header class="workspace-bar"><div class="container d-flex justify-content-between align-items-center gap-3">
+        <span class="fw-bold">@T["Clinic"]</span>
+        <nav aria-label="@T["Language"]" class="d-flex gap-3">
+            <a asp-route-culture="ar" lang="ar">العربية</a>
+            <a asp-route-culture="en" lang="en">English</a>
+        </nav>
+    </div></header>
+    <main id="main" class="container py-4 py-md-5">
+        @if (TempData["Notice"] is string notice)
+        {
+            <div class="alert @(notice == "Saved" ? "alert-success" : "alert-warning")" role="alert" data-notice="@notice">@T[notice]</div>
+        }
+        @RenderBody()
+    </main>
+</body>
+</html>
