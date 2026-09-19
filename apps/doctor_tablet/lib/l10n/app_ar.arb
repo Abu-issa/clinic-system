@@ -1,0 +1,43 @@
+{
+  "@@locale": "ar",
+  "appTitle": "مساحة الطبيب",
+  "@appTitle": {
+    "description": "Application name shown in the app bar and window title."
+  },
+  "startupTagline": "دفتر الملاحظات الطبي وسير العمل السريري",
+  "@startupTagline": {
+    "description": "Short description under the logo on the startup screen."
+  },
+  "startupInitializing": "جارٍ التهيئة…",
+  "@startupInitializing": {
+    "description": "Progress label while the app initializes."
+  },
+  "loginTitle": "تسجيل دخول الطاقم الطبي",
+  "@loginTitle": {
+    "description": "Title of the (placeholder) staff login screen."
+  },
+  "loginPlaceholderNote": "شاشة مؤقتة — المصادقة الحقيقية متعددة العوامل تُنفَّذ في مرحلة لاحقة.",
+  "@loginPlaceholderNote": {
+    "description": "Explicit notice that authentication is not implemented yet."
+  },
+  "loginContinuePlaceholder": "متابعة (مؤقت)",
+  "@loginContinuePlaceholder": {
+    "description": "Placeholder button that opens the authenticated shell without real sign-in."
+  },
+  "shellTitle": "المساحة المحمية",
+  "@shellTitle": {
+    "description": "Title of the placeholder authenticated shell."
+  },
+  "shellPlaceholderNote": "هيكل مؤقت — دفتر الملاحظات والخطوات السريرية تُبنى في المراحل القادمة.",
+  "@shellPlaceholderNote": {
+    "description": "Notice that the authenticated shell is a placeholder."
+  },
+  "shellSignOut": "خروج",
+  "@shellSignOut": {
+    "description": "Sign-out action in the authenticated shell."
+  },
+  "languageToggle": "English",
+  "@languageToggle": {
+    "description": "Label of the language switch button; shows the other language's name."
+  }
+}

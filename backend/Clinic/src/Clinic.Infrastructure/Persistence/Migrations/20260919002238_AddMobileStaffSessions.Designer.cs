@@ -4,6 +4,7 @@ using Clinic.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Clinic.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ClinicDbContext))]
-    partial class ClinicDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260919002238_AddMobileStaffSessions")]
+    partial class AddMobileStaffSessions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1294,31 +1297,6 @@ namespace Clinic.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Clinic.Infrastructure.Authentication.MobileStaffRefreshToken", b =>
-                {
-                    b.Property<string>("TokenHash")
-                        .HasMaxLength(64)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(64)");
-
-                    b.Property<DateTimeOffset?>("ConsumedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid>("SessionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("TokenHash");
-
-                    b.HasIndex("SessionId")
-                        .IsUnique()
-                        .HasFilter("[ConsumedAtUtc] IS NULL");
-
-                    b.ToTable("MobileStaffRefreshTokens", (string)null);
-                });
-
             modelBuilder.Entity("Clinic.Infrastructure.Authentication.MobileStaffSession", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1334,9 +1312,6 @@ namespace Clinic.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(8192)
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset?>("RefreshExpiresAtUtc")
-                        .HasColumnType("datetimeoffset");
 
                     b.Property<DateTimeOffset?>("RevokedAtUtc")
                         .HasColumnType("datetimeoffset");
@@ -1812,15 +1787,6 @@ namespace Clinic.Infrastructure.Persistence.Migrations
                         .WithMany("VitalMeasurements")
                         .HasForeignKey("VisitId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Clinic.Infrastructure.Authentication.MobileStaffRefreshToken", b =>
-                {
-                    b.HasOne("Clinic.Infrastructure.Authentication.MobileStaffSession", null)
-                        .WithMany()
-                        .HasForeignKey("SessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

@@ -169,6 +169,7 @@ builder.Services.AddScoped<IAuditQueryStore, AuditQueryStore>();
 builder.Services.AddScoped<HttpAccessAudit>();
 builder.Services.AddScoped<StaffCookieEvents>();
 builder.Services.AddAuthentication("ClinicStaff")
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, MobileStaffHandler>(MobileStaffAuthentication.Scheme, _ => { })
     .AddCookie("ClinicStaff", options => ConfigureCookie(options, "__Host-Clinic.Staff", 30))
     .AddCookie("ClinicStaffIntermediate", options => ConfigureCookie(options, "__Host-Clinic.StaffIntermediate", 5));
 builder.Services.AddRateLimiter(options =>
@@ -188,6 +189,8 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddAuthorization(options =>
 {
+    options.AddPolicy("MobileStaffSession", policy => policy.AddAuthenticationSchemes(MobileStaffAuthentication.Scheme)
+        .RequireAuthenticatedUser().RequireRole(StaffAuthentication.Roles).RequireClaim("amr", "mfa"));
     options.AddPolicy("AuditRead", policy => policy.RequireAuthenticatedUser().RequireClaim("amr", "mfa")
         .RequireRole("Doctor").RequireAssertion(context => context.User.HasClaim("permission", "audit.patient.read") ||
             context.User.HasClaim("permission", "audit.admin.read")));
@@ -372,7 +375,7 @@ app.UseWhen(context => context.Request.Path.StartsWithSegments("/staff") ||
 
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/api/staff/auth") || context.Request.Path.StartsWithSegments("/api/staff/patients")
+    if (context.Request.Path.StartsWithSegments("/api/mobile/staff/auth") || context.Request.Path.StartsWithSegments("/api/staff/auth") || context.Request.Path.StartsWithSegments("/api/staff/patients")
         || context.Request.Path.StartsWithSegments("/api/staff/medications")
         || context.Request.Path.StartsWithSegments("/api/staff/audit-events"))
         context.Response.Headers.CacheControl = "no-store";

@@ -30,6 +30,27 @@ public sealed class ClinicDbContext : Microsoft.AspNetCore.Identity.EntityFramew
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<Clinic.Infrastructure.Authentication.MobileStaffSession>(session =>
+        {
+            session.ToTable("MobileStaffSessions");
+            session.HasKey(x => x.Id);
+            session.Property(x => x.Id).ValueGeneratedNever();
+            session.Property(x => x.TokenHash).HasMaxLength(64).IsUnicode(false);
+            session.HasIndex(x => x.TokenHash).IsUnique();
+            session.Property(x => x.ProtectedPrincipal).HasMaxLength(8192);
+            session.HasOne<Clinic.Infrastructure.Authentication.StaffUser>().WithMany()
+                .HasForeignKey(x => x.StaffUserId).OnDelete(DeleteBehavior.Cascade);
+            session.HasIndex(x => x.ExpiresAtUtc);
+        });
+        modelBuilder.Entity<Clinic.Infrastructure.Authentication.MobileStaffRefreshToken>(token =>
+        {
+            token.ToTable("MobileStaffRefreshTokens");
+            token.HasKey(x => x.TokenHash);
+            token.Property(x => x.TokenHash).HasMaxLength(64).IsUnicode(false).ValueGeneratedNever();
+            token.HasOne<Clinic.Infrastructure.Authentication.MobileStaffSession>().WithMany()
+                .HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
+            token.HasIndex(x => x.SessionId).IsUnique().HasFilter("[ConsumedAtUtc] IS NULL");
+        });
         PatientRecordsMapping.Configure(modelBuilder);
         VisitMapping.Configure(modelBuilder);
         MedicationCatalogMapping.Configure(modelBuilder);

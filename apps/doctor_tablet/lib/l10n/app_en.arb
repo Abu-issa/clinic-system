@@ -1,0 +1,13 @@
+{
+  "@@locale": "en",
+  "appTitle": "Doctor Workspace",
+  "startupTagline": "Clinical notebook and workflows",
+  "startupInitializing": "Initializing…",
+  "loginTitle": "Staff sign-in",
+  "loginPlaceholderNote": "Placeholder screen — real MFA authentication arrives in a later phase.",
+  "loginContinuePlaceholder": "Continue (placeholder)",
+  "shellTitle": "Protected workspace",
+  "shellPlaceholderNote": "Placeholder shell — the notebook and clinical steps are built in later phases.",
+  "shellSignOut": "Sign out",
+  "languageToggle": "العربية"
+}

@@ -34,11 +34,21 @@ public sealed class StaffAuthentication(ClinicDbContext db, UserManager<StaffUse
     }
 
     public async Task<StaffAuthResult?> PasswordAsync(string userName, string password)
+        => await PasswordCoreAsync(userName, password, false);
+
+    public Task<StaffAuthResult?> MobilePasswordAsync(string login, string password)
+        => PasswordCoreAsync(login, password, true);
+
+    private async Task<StaffAuthResult?> PasswordCoreAsync(string userName, string password, bool allowEmail)
     {
         if (userName.Length > 256 || password.Length > 1024) return null;
         var normalized = users.NormalizeName(userName);
-        var id = await db.Users.AsNoTracking().Where(x => x.NormalizedUserName == normalized)
-            .Select(x => x.Id).SingleOrDefaultAsync();
+        var email = users.NormalizeEmail(userName);
+        // Email is not unique in the existing schema. Ambiguous identifiers fail closed.
+        var matches = await db.Users.AsNoTracking().Where(x => x.NormalizedUserName == normalized ||
+                allowEmail && x.NormalizedEmail == email)
+            .Select(x => x.Id).Take(2).ToArrayAsync();
+        var id = matches.Length == 1 ? matches[0] : null;
         if (id is null)
         {
             DummyHasher.VerifyHashedPassword(DummyUser, DummyHash, password);
@@ -89,6 +99,8 @@ public sealed class StaffAuthentication(ClinicDbContext db, UserManager<StaffUse
             await users.IsLockedOutAsync(user) || !intermediate && !user.TwoFactorEnabled) return false;
         if (!intermediate)
         {
+            var roles = await users.GetRolesAsync(user);
+            if (principal.FindAll(ClaimTypes.Role).Any(c => !roles.Contains(c.Value))) return false;
             // Every full-session permission and scope claim was issued from persisted state, so
             // revalidation selects them by claim type: grant removal is always detected without
             // relying on per-feature value prefixes. A stamp check alone does not detect Identity
@@ -99,7 +111,6 @@ public sealed class StaffAuthentication(ClinicDbContext db, UserManager<StaffUse
             if (recordClaims.Length > 0)
             {
                 var persisted = await users.GetClaimsAsync(user);
-                var roles = await users.GetRolesAsync(user);
                 if (recordClaims.Any(c => !persisted.Any(p => p.Type == c.Type && p.Value == c.Value)) ||
                     principal.FindAll(ClaimTypes.Role).Any(c => !roles.Contains(c.Value))) return false;
             }

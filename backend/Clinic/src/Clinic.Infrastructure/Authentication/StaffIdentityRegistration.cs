@@ -17,7 +17,9 @@ public static class StaffIdentityRegistration
             options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
         }).AddRoles<IdentityRole>().AddEntityFrameworkStores<ClinicDbContext>().AddDefaultTokenProviders()
             .AddPasswordValidator<StaffPasswordLengthValidator>();
-        services.AddScoped<IStaffAuthentication, StaffAuthentication>();
+        services.AddScoped<StaffAuthentication>();
+        services.AddScoped<IStaffAuthentication>(sp => sp.GetRequiredService<StaffAuthentication>());
+        services.AddScoped<MobileStaffAuthentication>();
         services.AddScoped<StaffAdministration>();
         return services;
     }
