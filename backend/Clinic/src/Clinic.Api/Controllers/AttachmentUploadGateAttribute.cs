@@ -131,7 +131,7 @@ public sealed class AttachmentUploadGateAttribute : Attribute, IAsyncResourceFil
 
     // Bounds total actual multipart bytes even on hosts without a mutable server size feature.
     // Does not own the server request stream and never buffers or seeks.
-    private sealed class LimitedRequestStream(Stream inner, long limit, Action exceeded) : Stream
+    internal sealed class LimitedRequestStream(Stream inner, long limit, Action exceeded) : Stream
     {
         private long consumed;
         public override bool CanRead => true;

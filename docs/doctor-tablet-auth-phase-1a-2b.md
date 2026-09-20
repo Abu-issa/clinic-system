@@ -122,3 +122,17 @@ The additive migration creates the refresh-history table, digest primary key, se
 key, filtered unique index and nullable session deadline. It was generated only and was **not
 applied to the main ClinicDb**. Integration tests apply migrations only to generated, disposable
 `ClinicTests_*` databases.
+
+## Verification results
+
+- `dotnet build backend/Clinic/Clinic.slnx`: passed, zero warnings/errors.
+- `dotnet test backend/Clinic/Clinic.slnx --no-build`: 269 unit tests and 660 integration tests
+  passed, zero failures/skips. Includes all 15 new refresh cases and existing web/mobile tests.
+- EF `migrations has-pending-model-changes`: no pending model changes.
+- `git diff --check`: passed.
+
+New SQL-backed HTTP tests exercise valid refresh, access expiry with usable refresh, rotation,
+ancestor replay, concurrent refresh, current-session logout, disabled/revoked accounts, password
+and MFA resets, direct security-stamp changes, role removal without stamp rotation, persisted
+MFA disablement, lockout, the exact absolute-expiry boundary, access lifetime capping, hash-only
+storage, token-type separation, unknown/malformed credentials, and secret-free logs/audit/errors.

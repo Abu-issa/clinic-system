@@ -4,12 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../app/localization/locale_cubit.dart';
 import '../../../app/session/session_cubit.dart';
+import '../../patients/presentation/patient_workspace.dart';
 
-/// Placeholder authenticated workspace.
-///
-/// No patient, notebook, or clinical content: later phases build the real
-/// feature destinations. Includes the language toggle so RTL/LTR behavior
-/// can be exercised on-device from the first runnable slice.
+/// Authenticated patient search and context shell; no notebook or clinical editor.
 final class AuthenticatedShell extends StatelessWidget {
   const AuthenticatedShell({super.key});
 
@@ -27,20 +24,11 @@ final class AuthenticatedShell extends StatelessWidget {
           IconButton(
             tooltip: strings.shellSignOut,
             icon: const Icon(Icons.logout),
-            onPressed: () => context.read<SessionCubit>().signOutPlaceholder(),
+            onPressed: () => context.read<SessionCubit>().logout(),
           ),
         ],
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            strings.shellPlaceholderNote,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-        ),
-      ),
+      body: const PatientWorkspace(),
     );
   }
 }

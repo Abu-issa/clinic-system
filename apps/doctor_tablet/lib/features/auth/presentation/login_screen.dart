@@ -3,59 +3,86 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../app/session/session_cubit.dart';
+import 'auth_widgets.dart';
 
-/// Placeholder staff sign-in.
-///
-/// Deliberately non-functional: no network call, no token handling, no MFA.
-/// The only action advances the placeholder session state so the shell can
-/// be exercised during development.
-final class LoginScreen extends StatelessWidget {
+final class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+final class _LoginScreenState extends State<LoginScreen> {
+  final _login = TextEditingController();
+  final _password = TextEditingController();
+  final _form = GlobalKey<FormState>();
+  @override
+  void dispose() {
+    _login.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!_form.currentState!.validate()) return;
+    final password = _password.text;
+    _password.clear();
+    context.read<SessionCubit>().login(_login.text, password);
+  }
 
   @override
   Widget build(BuildContext context) {
     final strings = AppLocalizations.of(context);
-    return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Card(
-            margin: const EdgeInsets.all(24),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(strings.loginTitle, style: Theme.of(context).textTheme.headlineSmall),
-                  const SizedBox(height: 8),
-                  Text(
-                    strings.loginPlaceholderNote,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: Theme.of(context).colorScheme.outline),
-                  ),
-                  const SizedBox(height: 24),
-                  const TextField(
-                    decoration: InputDecoration(labelText: 'staff id'),
-                    enabled: false,
-                  ),
-                  const SizedBox(height: 16),
-                  const TextField(
-                    decoration: InputDecoration(labelText: 'password'),
-                    obscureText: true,
-                    enabled: false,
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: () => context.read<SessionCubit>().signInPlaceholder(),
-                    child: Text(strings.loginContinuePlaceholder),
-                  ),
-                ],
-              ),
+    final state = context.watch<SessionCubit>().state;
+    final busy = state is SessionPasswordLoading;
+    final issue = switch (state) {
+      SessionUnauthenticated(:final issue) => issue,
+      SessionExpired(:final issue) => issue,
+      _ => null,
+    };
+    return AuthFrame(
+      title: strings.loginTitle,
+      child: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(strings.loginNote),
+            const SizedBox(height: 16),
+            TextFormField(
+              key: const Key('login'),
+              controller: _login,
+              enabled: !busy,
+              decoration: InputDecoration(labelText: strings.loginIdentifier),
+              autocorrect: false,
+              enableSuggestions: false,
+              maxLength: 256,
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? strings.requiredField : null,
             ),
-          ),
+            TextFormField(
+              key: const Key('password'),
+              controller: _password,
+              enabled: !busy,
+              decoration: InputDecoration(labelText: strings.loginPassword),
+              obscureText: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              maxLength: 1024,
+              validator: (v) =>
+                  v == null || v.isEmpty ? strings.requiredField : null,
+              onFieldSubmitted: (_) {
+                if (!busy) _submit();
+              },
+            ),
+            if (issue != null) AuthError(issue: issue),
+            const SizedBox(height: 16),
+            FilledButton(
+              key: const Key('sign-in'),
+              onPressed: busy ? null : _submit,
+              child: Text(busy ? strings.signingIn : strings.signIn),
+            ),
+          ],
         ),
       ),
     );

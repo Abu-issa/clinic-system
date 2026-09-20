@@ -59,6 +59,7 @@ public sealed class ClinicDbContext : Microsoft.AspNetCore.Identity.EntityFramew
         FileStorageMapping.Configure(modelBuilder);
         AttachmentMapping.Configure(modelBuilder);
         ClinicalTestMapping.Configure(modelBuilder);
+        NotebookMapping.Configure(modelBuilder);
 
         modelBuilder.Entity<Patient>(patient =>
         {
@@ -317,6 +318,14 @@ public sealed class ClinicDbContext : Microsoft.AspNetCore.Identity.EntityFramew
     // SQL writes remain outside this guarantee.
     private void EnsureAuditEventsAreAppendOnly()
     {
+        foreach (var entry in ChangeTracker.Entries<NotebookPage>().Where(x => x.State == EntityState.Modified))
+        {
+            if (entry.Property(x => x.FinalizedAtUtc).OriginalValue is not null &&
+                (entry.Property(x => x.FinalizedAtUtc).IsModified || entry.Property(x => x.FinalizedByDoctorId).IsModified))
+                throw new InvalidOperationException("Notebook finalization metadata is immutable.");
+        }
+        if (ChangeTracker.Entries<NotebookRevision>().Any(entry => entry.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Notebook revisions are append-only.");
         var violatingAuditEntries = ChangeTracker.Entries<AuditEvent>()
             .Where(entry => entry.State is EntityState.Modified or EntityState.Deleted)
             .ToList();

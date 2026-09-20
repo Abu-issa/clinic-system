@@ -3,9 +3,8 @@ import 'package:dio/dio.dart';
 
 /// Builds the app's Dio engine from the shared [ApiConfig].
 ///
-/// Phase 1A-1 constructs the client only; no endpoint calls exist yet.
-/// Later slices add authentication interceptors (session token, MFA
-/// refresh) without changing this construction point.
+/// MobileAuth adds authentication only to its protected client. No automatic
+/// retries, redirects, certificate bypasses, or credential logging are enabled.
 final class ApiClientFactory {
   const ApiClientFactory(this.config);
 
@@ -17,13 +16,13 @@ final class ApiClientFactory {
         baseUrl: config.baseUrl,
         connectTimeout: config.connectTimeout,
         receiveTimeout: config.receiveTimeout,
+        sendTimeout: config.connectTimeout,
+        followRedirects: false,
         // The API speaks JSON; failures arrive as ProblemDetails bodies.
         responseType: ResponseType.json,
         headers: {'Accept': 'application/json'},
       ),
     );
-    // Reserved: an interceptor that translates DioExceptions into the
-    // clinic_core ApiError classification will be registered here.
     return dio;
   }
 }

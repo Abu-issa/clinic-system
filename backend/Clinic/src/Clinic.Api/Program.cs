@@ -99,6 +99,9 @@ builder.Services.AddScoped<Clinic.Application.Attachments.AttachmentService>();
 builder.Services.AddScoped<Clinic.Application.ClinicalTests.IClinicalTestStore, ClinicalTestStore>();
 builder.Services.AddScoped<Clinic.Application.ClinicalTests.ClinicalTestService>();
 builder.Services.AddScoped<Clinic.Application.ClinicalTests.ClinicalTestLifecycleService>();
+builder.Services.AddScoped<Clinic.Application.Notebook.INotebookStore, NotebookStore>();
+builder.Services.AddScoped<Clinic.Application.Notebook.NotebookService>();
+builder.Services.AddScoped<Clinic.Application.Notebook.NotebookPayloadService>();
 builder.Services.AddSingleton(provider => new BookingPolicy(
     provider.GetRequiredService<IOptions<BookingPolicySettings>>().Value,
     provider.GetRequiredService<TimeZoneInfo>()));
@@ -169,6 +172,9 @@ builder.Services.AddScoped<IAuditQueryStore, AuditQueryStore>();
 builder.Services.AddScoped<HttpAccessAudit>();
 builder.Services.AddScoped<StaffCookieEvents>();
 builder.Services.AddAuthentication("ClinicStaff")
+    .AddPolicyScheme("ClinicNotebookStaff", "Notebook staff", options =>
+        options.ForwardDefaultSelector = context => context.Request.Headers.ContainsKey("Authorization")
+            ? MobileStaffAuthentication.Scheme : "ClinicStaff")
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, MobileStaffHandler>(MobileStaffAuthentication.Scheme, _ => { })
     .AddCookie("ClinicStaff", options => ConfigureCookie(options, "__Host-Clinic.Staff", 30))
     .AddCookie("ClinicStaffIntermediate", options => ConfigureCookie(options, "__Host-Clinic.StaffIntermediate", 5));
@@ -212,6 +218,10 @@ builder.Services.AddAuthorization(options =>
     PatientPolicy("VisitFinalize", "visits.finalize", ["Doctor"]);
     PatientPolicy("VisitAmend", "visits.amend", ["Doctor"]);
     PatientPolicy("VitalWrite", "vitals.write", ["Doctor", "DoctorAssistant"]);
+
+    // Doctor tablet notebook: Doctor read/write, DoctorAssistant read-only, Receptionist none.
+    PatientPolicy("NotebookRead", "notebook.read", ["Doctor", "DoctorAssistant"]);
+    PatientPolicy("NotebookWrite", "notebook.write", ["Doctor"]);
 
     // Diagnostic orders: only Doctors create; explicitly authorized assistants may read.
     PatientPolicy("ClinicalTestRead", "tests.read", ["Doctor", "DoctorAssistant"]);
@@ -375,7 +385,7 @@ app.UseWhen(context => context.Request.Path.StartsWithSegments("/staff") ||
 
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/api/mobile/staff/auth") || context.Request.Path.StartsWithSegments("/api/staff/auth") || context.Request.Path.StartsWithSegments("/api/staff/patients")
+    if (context.Request.Path.StartsWithSegments("/api/mobile/staff") || context.Request.Path.StartsWithSegments("/api/staff/auth") || context.Request.Path.StartsWithSegments("/api/staff/patients")
         || context.Request.Path.StartsWithSegments("/api/staff/medications")
         || context.Request.Path.StartsWithSegments("/api/staff/audit-events"))
         context.Response.Headers.CacheControl = "no-store";

@@ -15,7 +15,7 @@ public sealed class StaffAuthentication(ClinicDbContext db, UserManager<StaffUse
     public const string EnrollmentClaim = "staff_enrollment";
     public static readonly string[] Roles = ["Doctor", "Receptionist", "DoctorAssistant"];
     public static readonly string[] InitialPermissions = ["appointments.availability", "appointments.reschedule", "appointments.cancel", "schedule.manage"];
-    public static readonly string[] Permissions = [.. InitialPermissions, "patients.admin.read", "patients.admin.write", "patients.clinical.read", "patients.clinical.write", "visits.read", "visits.write", "visits.finalize", "visits.amend", "vitals.write", "medications.read", "medications.manage", "prescriptions.read", "prescriptions.write", "prescriptions.finalize", "prescriptions.release", "prescriptions.cancel", "audit.patient.read", "audit.admin.read", "attachments.read", "attachments.write", "tests.read", "tests.write"];
+    public static readonly string[] Permissions = [.. InitialPermissions, "patients.admin.read", "patients.admin.write", "patients.clinical.read", "patients.clinical.write", "visits.read", "visits.write", "visits.finalize", "visits.amend", "vitals.write", "medications.read", "medications.manage", "prescriptions.read", "prescriptions.write", "prescriptions.finalize", "prescriptions.release", "prescriptions.cancel", "audit.patient.read", "audit.admin.read", "attachments.read", "attachments.write", "tests.read", "tests.write", "notebook.read", "notebook.write"];
     private static readonly StaffUser DummyUser = new();
     private static readonly PasswordHasher<StaffUser> DummyHasher = new();
     private static readonly string DummyHash = DummyHasher.HashPassword(DummyUser, Guid.NewGuid().ToString());
@@ -116,6 +116,29 @@ public sealed class StaffAuthentication(ClinicDbContext db, UserManager<StaffUse
             }
         }
         return true;
+    }
+
+    // Mobile credentials intentionally carry no patient grants. Resolve current persisted
+    // read grants for resource-policy evaluation without changing web cookies or token contents.
+    public Task<ClaimsPrincipal> PatientReadPrincipalAsync(ClaimsPrincipal authenticated, CancellationToken ct) =>
+        ResourcePrincipalAsync(authenticated, ["patients.clinical.read"], ct);
+
+    public Task<ClaimsPrincipal> NotebookPrincipalAsync(ClaimsPrincipal authenticated, CancellationToken ct) =>
+        ResourcePrincipalAsync(authenticated, ["notebook.read", "notebook.write"], ct);
+
+    private async Task<ClaimsPrincipal> ResourcePrincipalAsync(ClaimsPrincipal authenticated, string[] permissions, CancellationToken ct)
+    {
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(authenticated.Identity as ClaimsIdentity));
+        var identity = (ClaimsIdentity)principal.Identity!;
+        foreach (var claim in identity.Claims.Where(c => c.Type is "permission" or "patient_record_id").ToArray())
+            identity.RemoveClaim(claim);
+        var id = authenticated.FindFirstValue(UserIdClaim);
+        var grants = await db.UserClaims.AsNoTracking().Where(c => c.UserId == id &&
+            (c.ClaimType == "permission" && permissions.Contains(c.ClaimValue!) || c.ClaimType == "patient_record_id"))
+            .ToListAsync(ct);
+        foreach (var grant in grants)
+            if (grant.ClaimValue is not null) identity.AddClaim(new(grant.ClaimType!, grant.ClaimValue));
+        return principal;
     }
 
     public async Task<AuthenticatorSetup?> SetupAsync(ClaimsPrincipal intermediate)

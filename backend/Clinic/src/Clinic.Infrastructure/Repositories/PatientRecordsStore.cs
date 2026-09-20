@@ -1,5 +1,6 @@
 using Clinic.Application.Patients;
 using Clinic.Domain.Entities;
+using Clinic.Domain.Enums;
 using Clinic.Infrastructure.Persistence;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,22 @@ namespace Clinic.Infrastructure.Repositories;
 
 public sealed class PatientRecordsStore(ClinicDbContext db) : IPatientRecordsStore
 {
+    public async Task<IReadOnlyList<PatientContextItem>> SearchContextAsync(string term,
+        IReadOnlyCollection<Guid> allowedPatients, int skip, int take, CancellationToken ct)
+    {
+        // Contains translates as a literal, parameterized substring (not a caller LIKE pattern).
+        // Filter by authorized IDs before pagination; never load a complete clinical aggregate.
+        return await db.Patients.AsNoTracking()
+            .Where(p => allowedPatients.Contains(p.Id) && (p.FullName.Contains(term) ||
+                p.MedicalRecordNumber != null && p.MedicalRecordNumber.Contains(term) ||
+                p.LegacyPaperFileNumber != null && p.LegacyPaperFileNumber.Contains(term)))
+            .OrderBy(p => p.FullName).ThenBy(p => p.Id).Skip(skip).Take(take)
+            .Select(p => new PatientContextItem(p.Id, p.FullName, p.MedicalRecordNumber, p.DateOfBirth,
+                db.Set<PatientMedicalProfile>().Where(profile => profile.PatientId == p.Id)
+                    .Select(profile => (AllergyStatus?)profile.AllergyStatus).FirstOrDefault() ?? AllergyStatus.Unknown))
+            .ToListAsync(ct);
+    }
+
     public Task<Patient?> PatientAsync(Guid id, CancellationToken ct) => db.Patients.SingleOrDefaultAsync(x => x.Id == id, ct);
     public Task<PatientMedicalProfile?> ProfileAsync(Guid patientId, CancellationToken ct)
     {

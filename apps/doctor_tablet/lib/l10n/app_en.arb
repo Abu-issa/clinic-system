@@ -4,10 +4,60 @@
   "startupTagline": "Clinical notebook and workflows",
   "startupInitializing": "Initializing…",
   "loginTitle": "Staff sign-in",
-  "loginPlaceholderNote": "Placeholder screen — real MFA authentication arrives in a later phase.",
-  "loginContinuePlaceholder": "Continue (placeholder)",
   "shellTitle": "Protected workspace",
   "shellPlaceholderNote": "Placeholder shell — the notebook and clinical steps are built in later phases.",
   "shellSignOut": "Sign out",
-  "languageToggle": "العربية"
+  "languageToggle": "العربية",
+  "authStorageError": "Secure storage is unavailable. Please try again.",
+  "signingIn": "Signing in…",
+  "mfaNote": "Enter the six-digit code from your authenticator app.",
+  "requiredField": "This field is required.",
+  "invalidMfa": "The code or challenge is invalid. Try again or restart sign-in.",
+  "enrollmentRequired": "Complete MFA enrollment in the staff web application first.",
+  "mfaTitle": "Two-step verification",
+  "loginPassword": "Password",
+  "authConfigurationError": "A trusted HTTPS clinic API address must be configured.",
+  "sessionExpired": "Your session ended. Please sign in again.",
+  "verifyingMfa": "Verifying…",
+  "verifyMfa": "Verify",
+  "mfaCodeRequired": "Enter a six-digit code.",
+  "loginNote": "Use your staff account, then enter your authenticator code.",
+  "backToLogin": "Back to sign-in",
+  "signIn": "Sign in",
+  "loginIdentifier": "Username or email",
+  "authNetworkError": "Unable to connect. Check your connection and try again.",
+  "invalidCredentials": "Unable to sign in. Check your credentials and try again.",
+  "mfaCode": "Authenticator code",
+  "patientActive": "Active patient",
+  "patientDob": "Date of birth",
+  "patientSwitchCancel": "Keep current patient",
+  "patientSearchEmpty": "No matching patients in your permitted scope.",
+  "patientMrn": "MRN",
+  "patientNotRecorded": "Not recorded",
+  "patientSearchTerm": "Name, MRN or paper file number",
+  "patientSwitchMessage": "Replace {currentName} with {nextName} as the active patient?",
+  "patientSelect": "Select",
+  "patientAllergyNone": "No known allergies",
+  "patientForbidden": "You do not have access to this patient search.",
+  "patientNetworkError": "Search unavailable. Check your connection and try again.",
+  "patientSelected": "Selected",
+  "patientSwitchConfirm": "Switch patient",
+  "patientSearchHint": "Search to select a patient.",
+  "patientSearchAction": "Search",
+  "patientLoadMore": "Load more",
+  "patientAllergyKnown": "Known allergies recorded",
+  "patientInvalidTerm": "Enter 2–100 characters without control characters.",
+  "patientAllergyUnknown": "Allergy status unknown",
+  "patientSwitchTitle": "Switch active patient?",
+  "patientSearchTitle": "Find a patient",
+  "@patientSwitchMessage": {
+    "placeholders": {
+      "nextName": {
+        "type": "String"
+      },
+      "currentName": {
+        "type": "String"
+      }
+    }
+  }
 }

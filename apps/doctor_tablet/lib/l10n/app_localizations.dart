@@ -116,23 +116,11 @@ abstract class AppLocalizations {
   /// **'جارٍ التهيئة…'**
   String get startupInitializing;
 
-  /// Title of the (placeholder) staff login screen.
+  /// Staff login screen title.
   ///
   /// In ar, this message translates to:
   /// **'تسجيل دخول الطاقم الطبي'**
   String get loginTitle;
-
-  /// Explicit notice that authentication is not implemented yet.
-  ///
-  /// In ar, this message translates to:
-  /// **'شاشة مؤقتة — المصادقة الحقيقية متعددة العوامل تُنفَّذ في مرحلة لاحقة.'**
-  String get loginPlaceholderNote;
-
-  /// Placeholder button that opens the authenticated shell without real sign-in.
-  ///
-  /// In ar, this message translates to:
-  /// **'متابعة (مؤقت)'**
-  String get loginContinuePlaceholder;
 
   /// Title of the placeholder authenticated shell.
   ///
@@ -157,6 +145,258 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'English'**
   String get languageToggle;
+
+  /// No description provided for @authStorageError.
+  ///
+  /// In ar, this message translates to:
+  /// **'التخزين الآمن غير متاح. يرجى المحاولة مجددًا.'**
+  String get authStorageError;
+
+  /// No description provided for @signingIn.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ تسجيل الدخول…'**
+  String get signingIn;
+
+  /// No description provided for @mfaNote.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل الرمز المكوّن من ستة أرقام من تطبيق المصادقة.'**
+  String get mfaNote;
+
+  /// No description provided for @requiredField.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الحقل مطلوب.'**
+  String get requiredField;
+
+  /// No description provided for @invalidMfa.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرمز أو طلب التحقق غير صالح. حاول مجددًا أو أعد تسجيل الدخول.'**
+  String get invalidMfa;
+
+  /// No description provided for @enrollmentRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكمل إعداد المصادقة متعددة العوامل في موقع الطاقم أولًا.'**
+  String get enrollmentRequired;
+
+  /// No description provided for @mfaTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'التحقق بخطوتين'**
+  String get mfaTitle;
+
+  /// No description provided for @loginPassword.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور'**
+  String get loginPassword;
+
+  /// No description provided for @authConfigurationError.
+  ///
+  /// In ar, this message translates to:
+  /// **'يجب إعداد عنوان HTTPS موثوق لواجهة العيادة.'**
+  String get authConfigurationError;
+
+  /// No description provided for @sessionExpired.
+  ///
+  /// In ar, this message translates to:
+  /// **'انتهت جلستك. يرجى تسجيل الدخول مجددًا.'**
+  String get sessionExpired;
+
+  /// No description provided for @verifyingMfa.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ التحقق…'**
+  String get verifyingMfa;
+
+  /// No description provided for @verifyMfa.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقق'**
+  String get verifyMfa;
+
+  /// No description provided for @mfaCodeRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل رمزًا مكوّنًا من ستة أرقام.'**
+  String get mfaCodeRequired;
+
+  /// No description provided for @loginNote.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدم حساب الطاقم، ثم أدخل الرمز من تطبيق المصادقة.'**
+  String get loginNote;
+
+  /// No description provided for @backToLogin.
+  ///
+  /// In ar, this message translates to:
+  /// **'العودة لتسجيل الدخول'**
+  String get backToLogin;
+
+  /// No description provided for @signIn.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الدخول'**
+  String get signIn;
+
+  /// No description provided for @loginIdentifier.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم المستخدم أو البريد الإلكتروني'**
+  String get loginIdentifier;
+
+  /// No description provided for @authNetworkError.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر الاتصال. تحقق من اتصالك وحاول مجددًا.'**
+  String get authNetworkError;
+
+  /// No description provided for @invalidCredentials.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تسجيل الدخول. تحقق من بياناتك وحاول مجددًا.'**
+  String get invalidCredentials;
+
+  /// No description provided for @mfaCode.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز المصادقة'**
+  String get mfaCode;
+
+  /// No description provided for @patientActive.
+  ///
+  /// In ar, this message translates to:
+  /// **'المريض الحالي'**
+  String get patientActive;
+
+  /// No description provided for @patientDob.
+  ///
+  /// In ar, this message translates to:
+  /// **'تاريخ الميلاد'**
+  String get patientDob;
+
+  /// No description provided for @patientSwitchCancel.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإبقاء على المريض الحالي'**
+  String get patientSwitchCancel;
+
+  /// No description provided for @patientSearchEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد مرضى مطابقون ضمن نطاق صلاحياتك.'**
+  String get patientSearchEmpty;
+
+  /// No description provided for @patientMrn.
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم الملف الطبي'**
+  String get patientMrn;
+
+  /// No description provided for @patientNotRecorded.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير مسجل'**
+  String get patientNotRecorded;
+
+  /// No description provided for @patientSearchTerm.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاسم أو رقم الملف الطبي أو الورقي'**
+  String get patientSearchTerm;
+
+  /// No description provided for @patientSwitchMessage.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل تريد استبدال {currentName} بالمريض {nextName} كمريض حالي؟'**
+  String patientSwitchMessage(String nextName, String currentName);
+
+  /// No description provided for @patientSelect.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار'**
+  String get patientSelect;
+
+  /// No description provided for @patientAllergyNone.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد حساسية معروفة'**
+  String get patientAllergyNone;
+
+  /// No description provided for @patientForbidden.
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس لديك صلاحية البحث عن المرضى.'**
+  String get patientForbidden;
+
+  /// No description provided for @patientNetworkError.
+  ///
+  /// In ar, this message translates to:
+  /// **'البحث غير متاح. تحقق من اتصالك وحاول مجددًا.'**
+  String get patientNetworkError;
+
+  /// No description provided for @patientSelected.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الاختيار'**
+  String get patientSelected;
+
+  /// No description provided for @patientSwitchConfirm.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير المريض'**
+  String get patientSwitchConfirm;
+
+  /// No description provided for @patientSearchHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث لاختيار المريض.'**
+  String get patientSearchHint;
+
+  /// No description provided for @patientSearchAction.
+  ///
+  /// In ar, this message translates to:
+  /// **'بحث'**
+  String get patientSearchAction;
+
+  /// No description provided for @patientLoadMore.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحميل المزيد'**
+  String get patientLoadMore;
+
+  /// No description provided for @patientAllergyKnown.
+  ///
+  /// In ar, this message translates to:
+  /// **'توجد حساسية مسجلة'**
+  String get patientAllergyKnown;
+
+  /// No description provided for @patientInvalidTerm.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل من حرفين إلى ١٠٠ حرف دون محارف تحكم.'**
+  String get patientInvalidTerm;
+
+  /// No description provided for @patientAllergyUnknown.
+  ///
+  /// In ar, this message translates to:
+  /// **'حالة الحساسية غير معروفة'**
+  String get patientAllergyUnknown;
+
+  /// No description provided for @patientSwitchTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير المريض الحالي؟'**
+  String get patientSwitchTitle;
+
+  /// No description provided for @patientSearchTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'البحث عن مريض'**
+  String get patientSearchTitle;
 }
 
 class _AppLocalizationsDelegate

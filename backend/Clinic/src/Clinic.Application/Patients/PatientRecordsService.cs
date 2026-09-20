@@ -7,6 +7,19 @@ namespace Clinic.Application.Patients;
 
 public sealed class PatientRecordsService(IPatientRecordsStore store, TimeProvider clock, IAuditMutationWriter auditWriter)
 {
+    // Scope is supplied only by server authorization, never by the HTTP body.
+    public async Task<PatientContextPage?> SearchContextAsync(PatientContextSearchRequest input,
+        IReadOnlyCollection<Guid> allowedPatients, CancellationToken ct = default)
+    {
+        var term = input.SearchTerm?.Trim();
+        if (term is null || term.Length is < 2 or > 100 || term.Any(char.IsControl) ||
+            input.Page is < 1 or > 100 || input.PageSize is < 1 or > 20) return null;
+        if (allowedPatients.Count == 0) return new([], input.Page, input.PageSize, false);
+        var items = await store.SearchContextAsync(term, allowedPatients,
+            (input.Page - 1) * input.PageSize, input.PageSize + 1, ct);
+        return new(items.Take(input.PageSize).ToArray(), input.Page, input.PageSize, items.Count > input.PageSize);
+    }
+
     public async Task<PatientAdminResult> GetAsync(Guid id, CancellationToken ct = default)
     {
         var patient = await store.PatientAsync(id, ct);

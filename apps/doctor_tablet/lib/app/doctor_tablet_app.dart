@@ -4,13 +4,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../features/auth/presentation/login_screen.dart';
+import '../features/auth/presentation/mfa_screen.dart';
+import '../features/patients/data/patient_search.dart';
+import '../features/patients/state/patient_context_cubit.dart';
 import '../features/home/presentation/authenticated_shell.dart';
 import '../features/startup/presentation/startup_screen.dart';
 import 'app_theme.dart';
 import 'localization/locale_cubit.dart';
 import 'session/session_cubit.dart';
 
-/// Root widget: wires localization, theme, and the placeholder session flow.
+/// Root widget: wires localization, theme, and validated staff authentication.
 final class DoctorTabletApp extends StatelessWidget {
   const DoctorTabletApp({
     super.key,
@@ -30,10 +33,21 @@ final class DoctorTabletApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider<SessionCubit>(
-          create: (_) => sessionCubit ?? (SessionCubit()..completeStartup()),
+          create: (_) =>
+              sessionCubit ?? (SessionCubit.configured()..completeStartup()),
         ),
         BlocProvider<LocaleCubit>(
           create: (_) => localeCubit ?? (LocaleCubit()..seed(initialLocale)),
+        ),
+        BlocProvider<PatientContextCubit>(
+          lazy: false,
+          create: (context) {
+            final session = context.read<SessionCubit>();
+            return PatientContextCubit(
+              session,
+              session.auth == null ? null : PatientSearch(session.auth!.api),
+            );
+          },
         ),
       ],
       child: BlocBuilder<LocaleCubit, Locale>(
@@ -65,7 +79,13 @@ final class _SessionRouter extends StatelessWidget {
     return BlocBuilder<SessionCubit, SessionState>(
       builder: (context, state) => switch (state) {
         SessionStarting() => const StartupScreen(),
-        SessionUnauthenticated() => const LoginScreen(),
+        SessionUnauthenticated() ||
+        SessionExpired() ||
+        SessionPasswordLoading() => const LoginScreen(),
+        SessionMfaRequired() => const MfaScreen(),
+        SessionRefreshing(:final staff) =>
+          staff == null ? const StartupScreen() : const AuthenticatedShell(),
+        SessionLoggingOut() => const StartupScreen(),
         SessionAuthenticated() => const AuthenticatedShell(),
       },
     );

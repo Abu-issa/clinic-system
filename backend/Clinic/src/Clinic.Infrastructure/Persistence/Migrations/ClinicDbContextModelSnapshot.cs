@@ -430,6 +430,122 @@ namespace Clinic.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Clinic.Domain.Entities.NotebookPage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AuthorDoctorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("CurrentRevisionNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("FinalizedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("FinalizedByDoctorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("VisitId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorDoctorId");
+
+                    b.HasIndex("FinalizedByDoctorId");
+
+                    b.HasIndex("VisitId");
+
+                    b.HasIndex("PatientId", "CreatedAtUtc");
+
+                    b.HasIndex("PatientId", "VisitId");
+
+                    b.ToTable("NotebookPages", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_NotebookPages_RevisionNumber", "[CurrentRevisionNumber] >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Clinic.Domain.Entities.NotebookRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AuthorStaffId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ClientDraftId")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<string>("OriginDeviceId")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<Guid>("PageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("RevisionNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("StoredFileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorStaffId");
+
+                    b.HasIndex("StoredFileId")
+                        .IsUnique()
+                        .HasFilter("[StoredFileId] IS NOT NULL");
+
+                    b.HasIndex("PageId", "ClientDraftId")
+                        .IsUnique()
+                        .HasFilter("[ClientDraftId] IS NOT NULL");
+
+                    b.HasIndex("PageId", "CreatedAtUtc");
+
+                    b.HasIndex("PageId", "RevisionNumber")
+                        .IsUnique();
+
+                    b.ToTable("NotebookRevisions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_NotebookRevisions_Payload", "([Kind] = 0 AND [StoredFileId] IS NULL) OR ([Kind] IN (1, 2) AND [StoredFileId] IS NOT NULL AND [ClientDraftId] IS NOT NULL AND [OriginDeviceId] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_NotebookRevisions_RevisionNumber", "[RevisionNumber] >= 1");
+                        });
+                });
+
             modelBuilder.Entity("Clinic.Domain.Entities.Patient", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1655,6 +1771,51 @@ namespace Clinic.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Clinic.Domain.Entities.NotebookPage", b =>
+                {
+                    b.HasOne("Clinic.Domain.Entities.Doctor", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorDoctorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Clinic.Domain.Entities.Doctor", null)
+                        .WithMany()
+                        .HasForeignKey("FinalizedByDoctorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Clinic.Domain.Entities.Patient", null)
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Clinic.Domain.Entities.Visit", null)
+                        .WithMany()
+                        .HasForeignKey("VisitId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Clinic.Domain.Entities.NotebookRevision", b =>
+                {
+                    b.HasOne("Clinic.Infrastructure.Authentication.StaffUser", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorStaffId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Clinic.Domain.Entities.NotebookPage", null)
+                        .WithMany("Revisions")
+                        .HasForeignKey("PageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Clinic.Domain.Entities.StoredFile", null)
+                        .WithMany()
+                        .HasForeignKey("StoredFileId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("Clinic.Domain.Entities.PatientAllergy", b =>
                 {
                     b.HasOne("Clinic.Domain.Entities.PatientMedicalProfile", null)
@@ -1882,6 +2043,11 @@ namespace Clinic.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Clinic.Domain.Entities.NotebookPage", b =>
+                {
+                    b.Navigation("Revisions");
                 });
 
             modelBuilder.Entity("Clinic.Domain.Entities.PatientMedicalProfile", b =>

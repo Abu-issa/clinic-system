@@ -18,6 +18,7 @@ dependencies:
 
   # Networking and state management for the tablet app.
   dio: ^5.11.1
+  flutter_secure_storage: ^11.2.0
   flutter_bloc: ^9.1.1
   equatable: ^3.0.0
   intl: ^0.20.3

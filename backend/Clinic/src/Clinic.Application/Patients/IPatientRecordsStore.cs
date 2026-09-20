@@ -4,6 +4,8 @@ namespace Clinic.Application.Patients;
 
 public interface IPatientRecordsStore
 {
+    Task<IReadOnlyList<PatientContextItem>> SearchContextAsync(string term, IReadOnlyCollection<Guid> allowedPatients,
+        int skip, int take, CancellationToken ct);
     Task<Patient?> PatientAsync(Guid id, CancellationToken ct);
     Task<PatientMedicalProfile?> ProfileAsync(Guid patientId, CancellationToken ct);
     void Add(Patient patient);

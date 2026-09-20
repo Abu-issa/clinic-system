@@ -14,15 +14,7 @@
   },
   "loginTitle": "تسجيل دخول الطاقم الطبي",
   "@loginTitle": {
-    "description": "Title of the (placeholder) staff login screen."
-  },
-  "loginPlaceholderNote": "شاشة مؤقتة — المصادقة الحقيقية متعددة العوامل تُنفَّذ في مرحلة لاحقة.",
-  "@loginPlaceholderNote": {
-    "description": "Explicit notice that authentication is not implemented yet."
-  },
-  "loginContinuePlaceholder": "متابعة (مؤقت)",
-  "@loginContinuePlaceholder": {
-    "description": "Placeholder button that opens the authenticated shell without real sign-in."
+    "description": "Staff login screen title."
   },
   "shellTitle": "المساحة المحمية",
   "@shellTitle": {
@@ -39,5 +31,57 @@
   "languageToggle": "English",
   "@languageToggle": {
     "description": "Label of the language switch button; shows the other language's name."
+  },
+  "authStorageError": "التخزين الآمن غير متاح. يرجى المحاولة مجددًا.",
+  "signingIn": "جارٍ تسجيل الدخول…",
+  "mfaNote": "أدخل الرمز المكوّن من ستة أرقام من تطبيق المصادقة.",
+  "requiredField": "هذا الحقل مطلوب.",
+  "invalidMfa": "الرمز أو طلب التحقق غير صالح. حاول مجددًا أو أعد تسجيل الدخول.",
+  "enrollmentRequired": "أكمل إعداد المصادقة متعددة العوامل في موقع الطاقم أولًا.",
+  "mfaTitle": "التحقق بخطوتين",
+  "loginPassword": "كلمة المرور",
+  "authConfigurationError": "يجب إعداد عنوان HTTPS موثوق لواجهة العيادة.",
+  "sessionExpired": "انتهت جلستك. يرجى تسجيل الدخول مجددًا.",
+  "verifyingMfa": "جارٍ التحقق…",
+  "verifyMfa": "تحقق",
+  "mfaCodeRequired": "أدخل رمزًا مكوّنًا من ستة أرقام.",
+  "loginNote": "استخدم حساب الطاقم، ثم أدخل الرمز من تطبيق المصادقة.",
+  "backToLogin": "العودة لتسجيل الدخول",
+  "signIn": "تسجيل الدخول",
+  "loginIdentifier": "اسم المستخدم أو البريد الإلكتروني",
+  "authNetworkError": "تعذّر الاتصال. تحقق من اتصالك وحاول مجددًا.",
+  "invalidCredentials": "تعذّر تسجيل الدخول. تحقق من بياناتك وحاول مجددًا.",
+  "mfaCode": "رمز المصادقة",
+  "patientActive": "المريض الحالي",
+  "patientDob": "تاريخ الميلاد",
+  "patientSwitchCancel": "الإبقاء على المريض الحالي",
+  "patientSearchEmpty": "لا يوجد مرضى مطابقون ضمن نطاق صلاحياتك.",
+  "patientMrn": "رقم الملف الطبي",
+  "patientNotRecorded": "غير مسجل",
+  "patientSearchTerm": "الاسم أو رقم الملف الطبي أو الورقي",
+  "patientSwitchMessage": "هل تريد استبدال {currentName} بالمريض {nextName} كمريض حالي؟",
+  "patientSelect": "اختيار",
+  "patientAllergyNone": "لا توجد حساسية معروفة",
+  "patientForbidden": "ليس لديك صلاحية البحث عن المرضى.",
+  "patientNetworkError": "البحث غير متاح. تحقق من اتصالك وحاول مجددًا.",
+  "patientSelected": "تم الاختيار",
+  "patientSwitchConfirm": "تغيير المريض",
+  "patientSearchHint": "ابحث لاختيار المريض.",
+  "patientSearchAction": "بحث",
+  "patientLoadMore": "تحميل المزيد",
+  "patientAllergyKnown": "توجد حساسية مسجلة",
+  "patientInvalidTerm": "أدخل من حرفين إلى ١٠٠ حرف دون محارف تحكم.",
+  "patientAllergyUnknown": "حالة الحساسية غير معروفة",
+  "patientSwitchTitle": "تغيير المريض الحالي؟",
+  "patientSearchTitle": "البحث عن مريض",
+  "@patientSwitchMessage": {
+    "placeholders": {
+      "nextName": {
+        "type": "String"
+      },
+      "currentName": {
+        "type": "String"
+      }
+    }
   }
 }
