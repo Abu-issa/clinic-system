@@ -16,6 +16,7 @@ public sealed class StaffText
     {
         ["Clinic"] = ("مساحة الفريق الطبي", "Clinical workspace"),
         ["Language"] = ("اللغة", "Language"),
+        ["SubmissionExpired"] = ("تم استخدام نموذج الطلب أو انتهت صلاحيته. تحقق من قائمة الفحوصات قبل فتح نموذج جديد لتجنب طلب مكرر.", "This form was already submitted or expired. Check the test list before opening a new form to avoid a duplicate request."),
         ["NoVisits"] = ("لا توجد زيارات متاحة للاختيار ضمن صلاحيتك. يمكنك إنشاء طلب بدون ربط بزيارة.", "No visits are available to select within your access. You can create a standalone request."),
         ["Tests"] = ("الفحوصات الطبية", "Clinical tests"),
         ["Subtitle"] = ("طلبات الفحوصات والنتائج ومراجعتها", "Test requests, result files and review"),

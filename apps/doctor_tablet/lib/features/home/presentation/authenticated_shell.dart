@@ -6,7 +6,7 @@ import '../../../app/localization/locale_cubit.dart';
 import '../../../app/session/session_cubit.dart';
 import '../../patients/presentation/patient_workspace.dart';
 
-/// Authenticated patient search and context shell; no notebook or clinical editor.
+/// Authenticated patient workspace with a persistent patient header.
 final class AuthenticatedShell extends StatelessWidget {
   const AuthenticatedShell({super.key});
 

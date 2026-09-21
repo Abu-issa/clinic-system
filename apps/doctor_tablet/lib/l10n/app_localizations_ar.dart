@@ -168,4 +168,121 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get patientSearchTitle => 'البحث عن مريض';
+
+  @override
+  String get notebookConflict =>
+      'يتعارض الطلب مع حالة الصفحة. حدّث قبل المتابعة.';
+
+  @override
+  String get notebookFoundation =>
+      'ترسل إجراءات التأسيس البيانات الوصفية فقط. الحبر مؤقت ولا يُضمّن في الإرسال.';
+
+  @override
+  String get notebookTitleRequired => 'أدخل عنواناً من ١ إلى ٢٠٠ حرف.';
+
+  @override
+  String get notebookFinalize => 'اعتماد الصفحة كنهائية';
+
+  @override
+  String get notebookFailed =>
+      'تعذر إكمال الطلب. حدّث للتحقق من حالة الخادم قبل إنشاء صفحة أخرى.';
+
+  @override
+  String get notebookRetry => 'إعادة إرسال الطلب نفسه';
+
+  @override
+  String get notebookRowVersion => 'إصدار الصف';
+
+  @override
+  String get notebookRevision => 'المراجعة';
+
+  @override
+  String get notebookFinalized => 'نهائية';
+
+  @override
+  String get notebookDraft => 'مسودة';
+
+  @override
+  String get notebookCreate => 'إنشاء صفحة';
+
+  @override
+  String get notebookChanged =>
+      'تغيّرت الصفحة على الخادم. حُفظت حالتك الحالية. حدّث الصفحة قبل المتابعة.';
+
+  @override
+  String get notebookTitle => 'دفتر الملاحظات';
+
+  @override
+  String get notebookForbidden => 'غير مصرح بالوصول إلى دفتر الملاحظات.';
+
+  @override
+  String get notebookAmend => 'إضافة ملحق';
+
+  @override
+  String get notebookPageTitle => 'عنوان الصفحة';
+
+  @override
+  String get notebookSubmit => 'إرسال مراجعة أولية';
+
+  @override
+  String get notebookEmpty => 'لا توجد صفحات بعد.';
+
+  @override
+  String get notebookCreated => 'أُنشئت';
+
+  @override
+  String get notebookRetryHint =>
+      'نتيجة الطلب غير مؤكدة. أعد إرسال الطلب نفسه لتجنب التكرار، أو حدّث للاطلاع على حالة الخادم.';
+
+  @override
+  String get notebookLoadMore => 'تحميل المزيد من الصفحات';
+
+  @override
+  String get notebookUpdated => 'آخر تحديث';
+
+  @override
+  String get notebookRefresh => 'تحديث من الخادم';
+
+  @override
+  String get inkBlack => 'أسود';
+
+  @override
+  String get inkBlue => 'أزرق';
+
+  @override
+  String get inkBold => 'عريض';
+
+  @override
+  String get inkEraser => 'ممحاة ضربة كاملة';
+
+  @override
+  String get inkFine => 'رفيع';
+
+  @override
+  String get inkMedium => 'متوسط';
+
+  @override
+  String get inkPen => 'قلم';
+
+  @override
+  String get inkRed => 'أحمر';
+
+  @override
+  String get inkRedo => 'إعادة';
+
+  @override
+  String get inkTemporary =>
+      'الحبر مؤقت — لا يُحفظ ولا يُرفع. مغادرة الصفحة أو تغيير المريض يمسح الحبر.';
+
+  @override
+  String get inkUndo => 'تراجع';
+
+  @override
+  String get inkNavigation => 'إصبع واحد: تحريك · إصبعان: تكبير وتصغير';
+
+  @override
+  String get inkResetView => 'إعادة ضبط العرض';
+
+  @override
+  String get inkStylusActive => 'القلم نشط · التنقل بالأصابع متوقف';
 }

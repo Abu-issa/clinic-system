@@ -172,4 +172,121 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get patientSearchTitle => 'Find a patient';
+
+  @override
+  String get notebookConflict =>
+      'The submission conflicts with the page state. Refresh before continuing.';
+
+  @override
+  String get notebookFoundation =>
+      'Foundation actions submit metadata only. Ink is temporary and is not included in submissions.';
+
+  @override
+  String get notebookTitleRequired => 'Enter a title of 1–200 characters.';
+
+  @override
+  String get notebookFinalize => 'Finalize page';
+
+  @override
+  String get notebookFailed =>
+      'The request could not be completed. Refresh to check server state before creating another page.';
+
+  @override
+  String get notebookRetry => 'Retry same submission';
+
+  @override
+  String get notebookRowVersion => 'RowVersion';
+
+  @override
+  String get notebookRevision => 'Revision';
+
+  @override
+  String get notebookFinalized => 'Finalized';
+
+  @override
+  String get notebookDraft => 'Draft';
+
+  @override
+  String get notebookCreate => 'Create page';
+
+  @override
+  String get notebookChanged =>
+      'This page changed on the server. Your current state is preserved. Refresh explicitly before continuing.';
+
+  @override
+  String get notebookTitle => 'Notebook';
+
+  @override
+  String get notebookForbidden => 'Notebook access is not authorized.';
+
+  @override
+  String get notebookAmend => 'Add amendment';
+
+  @override
+  String get notebookPageTitle => 'Page title';
+
+  @override
+  String get notebookSubmit => 'Submit minimal revision';
+
+  @override
+  String get notebookEmpty => 'No notebook pages yet.';
+
+  @override
+  String get notebookCreated => 'Created';
+
+  @override
+  String get notebookRetryHint =>
+      'The outcome is uncertain. Retry the same submission to avoid duplicates, or refresh to inspect the server state.';
+
+  @override
+  String get notebookLoadMore => 'Load more pages';
+
+  @override
+  String get notebookUpdated => 'Updated';
+
+  @override
+  String get notebookRefresh => 'Refresh from server';
+
+  @override
+  String get inkBlack => 'Black';
+
+  @override
+  String get inkBlue => 'Blue';
+
+  @override
+  String get inkBold => 'Bold';
+
+  @override
+  String get inkEraser => 'Whole-stroke eraser';
+
+  @override
+  String get inkFine => 'Fine';
+
+  @override
+  String get inkMedium => 'Medium';
+
+  @override
+  String get inkPen => 'Pen';
+
+  @override
+  String get inkRed => 'Red';
+
+  @override
+  String get inkRedo => 'Redo';
+
+  @override
+  String get inkTemporary =>
+      'Temporary ink — not saved or uploaded. Leaving this page or switching patient discards ink.';
+
+  @override
+  String get inkUndo => 'Undo';
+
+  @override
+  String get inkNavigation => 'One finger: pan · Two fingers: zoom';
+
+  @override
+  String get inkResetView => 'Reset view';
+
+  @override
+  String get inkStylusActive => 'Stylus active · Finger navigation paused';
 }

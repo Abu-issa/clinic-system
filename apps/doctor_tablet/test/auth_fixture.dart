@@ -49,6 +49,9 @@ final class FakeClinic implements HttpClientAdapter {
   final twoOldRequests = Completer<void>();
   void Function()? onLogout;
   Future<ResponseBody> Function(RequestOptions)? patientSearch;
+  Future<ResponseBody> Function(RequestOptions)? notebook;
+  List<String> roles = ['Doctor'];
+  final List<List<int>> multipartBodies = [];
   String get access => String.fromCharCode(65 + version) * 43;
   String get refresh => String.fromCharCode(97 + version) * 43;
   Map<String, dynamic> get tokens => {
@@ -66,6 +69,11 @@ final class FakeClinic implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     final path = options.path;
+    if (options.data is FormData && requestStream != null) {
+      multipartBodies.add(
+        await requestStream.expand((chunk) => chunk).toList(),
+      );
+    }
     if (path.endsWith('/login')) {
       return reply(invalidPassword ? 401 : 200, {
         'next': 'totp',
@@ -119,10 +127,16 @@ final class FakeClinic implements HttpClientAdapter {
     if (path == '/api/mobile/staff/patients/search' && patientSearch != null) {
       return patientSearch!(options);
     }
-    return reply(200, {
-      'staffId': 'staff-1',
-      'roles': ['Doctor'],
-    });
+    if (path.contains('/notebook/pages')) {
+      if (notebook != null) return notebook!(options);
+      return reply(200, {
+        'items': [],
+        'page': 1,
+        'pageSize': 10,
+        'hasMore': false,
+      });
+    }
+    return reply(200, {'staffId': 'staff-1', 'roles': roles});
   }
 
   ResponseBody reply(int code, Map<String, dynamic> body) =>

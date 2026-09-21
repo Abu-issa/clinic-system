@@ -332,7 +332,12 @@ final class _AuthInterceptor extends Interceptor {
     try {
       // A new request option object prevents retry flags leaking to other calls.
       final response = await auth.api.fetch<dynamic>(
-        request.copyWith(extra: {...request.extra, retryKey: true}),
+        request.copyWith(
+          data: request.data is FormData
+              ? (request.data as FormData).clone()
+              : request.data,
+          extra: {...request.extra, retryKey: true},
+        ),
       );
       handler.resolve(response);
     } on DioException catch (e) {

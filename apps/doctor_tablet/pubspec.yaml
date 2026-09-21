@@ -22,6 +22,7 @@ dependencies:
   flutter_bloc: ^9.1.1
   equatable: ^3.0.0
   intl: ^0.20.3
+  sqflite_sqlcipher: 3.4.1
 
 dev_dependencies:
   flutter_test:

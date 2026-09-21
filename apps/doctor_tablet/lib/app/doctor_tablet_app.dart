@@ -6,6 +6,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/mfa_screen.dart';
 import '../features/patients/data/patient_search.dart';
+import '../features/notebook/data/notebook_api.dart';
+import '../features/notebook/state/notebook_cubit.dart';
 import '../features/patients/state/patient_context_cubit.dart';
 import '../features/home/presentation/authenticated_shell.dart';
 import '../features/startup/presentation/startup_screen.dart';
@@ -46,6 +48,17 @@ final class DoctorTabletApp extends StatelessWidget {
             return PatientContextCubit(
               session,
               session.auth == null ? null : PatientSearch(session.auth!.api),
+            );
+          },
+        ),
+        BlocProvider<NotebookCubit>(
+          lazy: false,
+          create: (context) {
+            final session = context.read<SessionCubit>();
+            return NotebookCubit(
+              session,
+              context.read<PatientContextCubit>(),
+              session.auth == null ? null : NotebookApi(session.auth!.api),
             );
           },
         ),

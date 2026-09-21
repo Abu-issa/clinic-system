@@ -25,6 +25,7 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<Clinic.Api.StaffMvc.StaffText>();
+builder.Services.AddSingleton<Clinic.Api.StaffMvc.StaffCreateSubmissions>();
 builder.Services.AddControllersWithViews().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter<AppointmentType>());

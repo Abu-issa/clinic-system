@@ -397,6 +397,228 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'البحث عن مريض'**
   String get patientSearchTitle;
+
+  /// No description provided for @notebookConflict.
+  ///
+  /// In ar, this message translates to:
+  /// **'يتعارض الطلب مع حالة الصفحة. حدّث قبل المتابعة.'**
+  String get notebookConflict;
+
+  /// No description provided for @notebookFoundation.
+  ///
+  /// In ar, this message translates to:
+  /// **'ترسل إجراءات التأسيس البيانات الوصفية فقط. الحبر مؤقت ولا يُضمّن في الإرسال.'**
+  String get notebookFoundation;
+
+  /// No description provided for @notebookTitleRequired.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل عنواناً من ١ إلى ٢٠٠ حرف.'**
+  String get notebookTitleRequired;
+
+  /// No description provided for @notebookFinalize.
+  ///
+  /// In ar, this message translates to:
+  /// **'اعتماد الصفحة كنهائية'**
+  String get notebookFinalize;
+
+  /// No description provided for @notebookFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذر إكمال الطلب. حدّث للتحقق من حالة الخادم قبل إنشاء صفحة أخرى.'**
+  String get notebookFailed;
+
+  /// No description provided for @notebookRetry.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة إرسال الطلب نفسه'**
+  String get notebookRetry;
+
+  /// No description provided for @notebookRowVersion.
+  ///
+  /// In ar, this message translates to:
+  /// **'إصدار الصف'**
+  String get notebookRowVersion;
+
+  /// No description provided for @notebookRevision.
+  ///
+  /// In ar, this message translates to:
+  /// **'المراجعة'**
+  String get notebookRevision;
+
+  /// No description provided for @notebookFinalized.
+  ///
+  /// In ar, this message translates to:
+  /// **'نهائية'**
+  String get notebookFinalized;
+
+  /// No description provided for @notebookDraft.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسودة'**
+  String get notebookDraft;
+
+  /// No description provided for @notebookCreate.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء صفحة'**
+  String get notebookCreate;
+
+  /// No description provided for @notebookChanged.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيّرت الصفحة على الخادم. حُفظت حالتك الحالية. حدّث الصفحة قبل المتابعة.'**
+  String get notebookChanged;
+
+  /// No description provided for @notebookTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'دفتر الملاحظات'**
+  String get notebookTitle;
+
+  /// No description provided for @notebookForbidden.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير مصرح بالوصول إلى دفتر الملاحظات.'**
+  String get notebookForbidden;
+
+  /// No description provided for @notebookAmend.
+  ///
+  /// In ar, this message translates to:
+  /// **'إضافة ملحق'**
+  String get notebookAmend;
+
+  /// No description provided for @notebookPageTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'عنوان الصفحة'**
+  String get notebookPageTitle;
+
+  /// No description provided for @notebookSubmit.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال مراجعة أولية'**
+  String get notebookSubmit;
+
+  /// No description provided for @notebookEmpty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد صفحات بعد.'**
+  String get notebookEmpty;
+
+  /// No description provided for @notebookCreated.
+  ///
+  /// In ar, this message translates to:
+  /// **'أُنشئت'**
+  String get notebookCreated;
+
+  /// No description provided for @notebookRetryHint.
+  ///
+  /// In ar, this message translates to:
+  /// **'نتيجة الطلب غير مؤكدة. أعد إرسال الطلب نفسه لتجنب التكرار، أو حدّث للاطلاع على حالة الخادم.'**
+  String get notebookRetryHint;
+
+  /// No description provided for @notebookLoadMore.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحميل المزيد من الصفحات'**
+  String get notebookLoadMore;
+
+  /// No description provided for @notebookUpdated.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر تحديث'**
+  String get notebookUpdated;
+
+  /// No description provided for @notebookRefresh.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديث من الخادم'**
+  String get notebookRefresh;
+
+  /// No description provided for @inkBlack.
+  ///
+  /// In ar, this message translates to:
+  /// **'أسود'**
+  String get inkBlack;
+
+  /// No description provided for @inkBlue.
+  ///
+  /// In ar, this message translates to:
+  /// **'أزرق'**
+  String get inkBlue;
+
+  /// No description provided for @inkBold.
+  ///
+  /// In ar, this message translates to:
+  /// **'عريض'**
+  String get inkBold;
+
+  /// No description provided for @inkEraser.
+  ///
+  /// In ar, this message translates to:
+  /// **'ممحاة ضربة كاملة'**
+  String get inkEraser;
+
+  /// No description provided for @inkFine.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفيع'**
+  String get inkFine;
+
+  /// No description provided for @inkMedium.
+  ///
+  /// In ar, this message translates to:
+  /// **'متوسط'**
+  String get inkMedium;
+
+  /// No description provided for @inkPen.
+  ///
+  /// In ar, this message translates to:
+  /// **'قلم'**
+  String get inkPen;
+
+  /// No description provided for @inkRed.
+  ///
+  /// In ar, this message translates to:
+  /// **'أحمر'**
+  String get inkRed;
+
+  /// No description provided for @inkRedo.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة'**
+  String get inkRedo;
+
+  /// No description provided for @inkTemporary.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحبر مؤقت — لا يُحفظ ولا يُرفع. مغادرة الصفحة أو تغيير المريض يمسح الحبر.'**
+  String get inkTemporary;
+
+  /// No description provided for @inkUndo.
+  ///
+  /// In ar, this message translates to:
+  /// **'تراجع'**
+  String get inkUndo;
+
+  /// No description provided for @inkNavigation.
+  ///
+  /// In ar, this message translates to:
+  /// **'إصبع واحد: تحريك · إصبعان: تكبير وتصغير'**
+  String get inkNavigation;
+
+  /// No description provided for @inkResetView.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة ضبط العرض'**
+  String get inkResetView;
+
+  /// No description provided for @inkStylusActive.
+  ///
+  /// In ar, this message translates to:
+  /// **'القلم نشط · التنقل بالأصابع متوقف'**
+  String get inkStylusActive;
 }
 
 class _AppLocalizationsDelegate

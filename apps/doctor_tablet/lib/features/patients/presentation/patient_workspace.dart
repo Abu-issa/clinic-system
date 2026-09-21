@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:doctor_tablet/l10n/app_localizations.dart';
 
 import '../../../app/session/session_cubit.dart';
+import '../../notebook/presentation/notebook_section.dart';
 import '../data/patient_search.dart';
 import '../state/patient_context_cubit.dart';
 
@@ -228,6 +229,11 @@ final class _PatientWorkspaceState extends State<PatientWorkspace> {
                           ? null
                           : cubit.loadMore,
                       child: Text(s.patientLoadMore),
+                    ),
+                  if (state.active != null)
+                    NotebookSection(
+                      key: ValueKey(state.active!.patientId),
+                      patientId: state.active!.patientId,
                     ),
                 ],
               ),

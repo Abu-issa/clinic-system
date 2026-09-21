@@ -1,6 +1,12 @@
 # Staff MVC — Clinical tests Phase 1
 
-Status: **READY FOR STAFF MVC CLINICAL TESTS PHASE 1 REVIEW**.
+Status: **READY TO COMPLETE STAFF MVC CLINICAL TESTS PHASE 1** (closure verified 2026-09-21).
+
+Final hardening evidence and the current closure verdict are recorded in
+[staff-mvc-clinical-tests-phase-1-closure.md](staff-mvc-clinical-tests-phase-1-closure.md).
+That report supersedes the original validation/limitations below: route IDs are explicitly bound,
+create forms now have single-use replay protection, and the existing download endpoint supports
+localized staff-mode error HTML without changing the normal API contract.
 
 This slice retains file-first results. It adds patient-scoped staff pages for requesting a
 test, uploading result files and reviewing the request. It does not add structured results.

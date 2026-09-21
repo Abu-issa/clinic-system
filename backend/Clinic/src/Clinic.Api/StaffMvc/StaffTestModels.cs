@@ -6,6 +6,7 @@ namespace Clinic.Api.StaffMvc;
 
 public sealed class CreateStaffTestForm
 {
+    public string? SubmissionToken { get; set; }
     [Required] public ClinicalTestCategory? Category { get; set; }
     [Required, StringLength(200)] public string? TestName { get; set; }
     public Guid? VisitId { get; set; }
@@ -13,6 +14,6 @@ public sealed class CreateStaffTestForm
 }
 public sealed record StaffTestListPage(ClinicalTestPatientContext Patient, IReadOnlyList<ClinicalTestSummary> Items,
     int Page, int PageSize, ClinicalTestCategory? Category, ClinicalTestStatus? Status, bool CanCreate);
-public sealed record StaffTestCreatePage(ClinicalTestPatientContext Patient, IReadOnlyList<ClinicalTestVisitChoice> Visits);
+public sealed record StaffTestCreatePage(ClinicalTestPatientContext Patient, IReadOnlyList<ClinicalTestVisitChoice> Visits, string SubmissionToken);
 public sealed record StaffTestDetailPage(ClinicalTestPatientContext Patient, ClinicalTestDetails Test,
     IReadOnlyList<ClinicalTestAttachmentDetails>? Attachments, bool CanUpload, bool CanReview, long MaxFileSizeBytes);

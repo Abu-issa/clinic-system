@@ -15,7 +15,7 @@ namespace Clinic.Api.Controllers;
 [Route("staff/patients/{patientId:guid}/tests")]
 public sealed class StaffTestsMvcController(ClinicalTestService service, ClinicalTestLifecycleService lifecycle,
     IClinicalTestStore store, IAuthorizationService authorization, HttpAccessAudit audit,
-    AttachmentOptions options, StaffText text) : Controller
+    AttachmentOptions options, StaffText text, StaffCreateSubmissions submissions) : Controller
 {
     private string Actor => User.FindFirstValue("staff_id") ?? User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     private async Task<bool> Allowed(Guid patient, string policy) =>
@@ -57,7 +57,7 @@ public sealed class StaffTestsMvcController(ClinicalTestService service, Clinica
                 return Unauthorized();
         }
         if (!await Audit(patientId)) return Unauthorized();
-        return View(new StaffTestCreatePage(patient, visits));
+        return View(new StaffTestCreatePage(patient, visits, submissions.Issue(Actor, patientId)));
     }
 
     [HttpPost("create"), ValidateAntiForgeryToken, RequestSizeLimit(32768)]
@@ -66,6 +66,8 @@ public sealed class StaffTestsMvcController(ClinicalTestService service, Clinica
         if (!await Allowed(patientId, "ClinicalTestWrite")) return Forbid();
         if (!ModelState.IsValid || form.Category is null || form.TestName is null)
             return CreatedRedirect(patientId, "Invalid");
+        if (!submissions.Consume(form.SubmissionToken, Actor, patientId))
+            return StaffUiErrors.Result(409, "SubmissionExpired");
         var result = await service.CreateAsync(new(patientId, form.VisitId, form.Category.Value,
             form.TestName, form.ClinicalInstructions), Actor, ct);
         if (result.Error == ClinicalTestError.InvalidInput) return CreatedRedirect(patientId, "Invalid");

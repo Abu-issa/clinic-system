@@ -12,7 +12,8 @@ namespace Clinic.IntegrationTests.Api;
 public sealed partial class StaffClinicalTestsHttpTests
 {
     private static string MvcPath(Harness h, Guid? id = null) => $"/staff/patients/{h.Patient.Id}/tests" + (id is null ? "" : $"/{id}");
-    private static FormUrlEncodedContent MvcCreateBody(Guid? visit = null, string? token = null) => new(new Dictionary<string, string> {
+    private static FormUrlEncodedContent MvcCreateBody(Guid? visit = null, string? token = null, string? submission = null) => new(new Dictionary<string, string> {
+        ["SubmissionToken"] = submission ?? "",
         ["Category"] = "Lab", ["TestName"] = "MVC فحص <script>alert(1)</script>",
         ["ClinicalInstructions"] = "SensitiveInstructions", ["VisitId"] = visit?.ToString() ?? "",
         ["__RequestVerificationToken"] = token ?? "" });
@@ -113,7 +114,8 @@ public sealed partial class StaffClinicalTestsHttpTests
         Assert.Contains(h.Visit.Id.ToString(), html);
         var token = WebUtility.HtmlDecode(Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
         Assert.NotEmpty(token);
-        using var response = await client.PostAsync(MvcPath(h) + "/create?culture=en", MvcCreateBody(h.Visit.Id, token));
+        var submission = Regex.Match(html, "name=\"SubmissionToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        using var response = await client.PostAsync(MvcPath(h) + "/create?culture=en", MvcCreateBody(h.Visit.Id, token, submission));
         html = await MvcFollow(client, response, "Saved");
         Assert.DoesNotContain("<script>alert(1)</script>", html); Assert.Contains("&lt;script&gt;", html);
         await using var db = database.CreateContext();
@@ -130,7 +132,7 @@ public sealed partial class StaffClinicalTestsHttpTests
     [InlineData("authority", HttpStatusCode.Forbidden)]
     public async Task MvcCreateRejectsUnauthorizedOrUnverifiedInput(string scenario, HttpStatusCode status)
     {
-        using var h = await Seed(); var (client, _) = await Client(h, scenario == "assistant" ? "DoctorAssistant" : "Doctor",
+        using var h = await Seed(); var (client, actor) = await Client(h, scenario == "assistant" ? "DoctorAssistant" : "Doctor",
             associateDoctor: scenario != "authority"); using var owned = client;
         if (scenario != "csrf") await WithCsrf(client);
         Guid? visitId = null;
@@ -140,7 +142,8 @@ public sealed partial class StaffClinicalTestsHttpTests
             var visit = new Visit(patient.Id, h.Doctor.Id, null, ServerNow, "seed", ServerNow);
             await using var db = database.CreateContext(); db.AddRange(patient, visit); await db.SaveChangesAsync(); visitId = visit.Id;
         }
-        using var response = await client.PostAsync(MvcPath(h) + "/create", MvcCreateBody(visitId));
+        var submission = h.Factory.Services.GetRequiredService<Clinic.Api.StaffMvc.StaffCreateSubmissions>().Issue(actor, h.Patient.Id);
+        using var response = await client.PostAsync(MvcPath(h) + "/create", MvcCreateBody(visitId, submission: submission));
         Assert.Equal(status, response.StatusCode); await AssertNoMutation(h);
     }
 
