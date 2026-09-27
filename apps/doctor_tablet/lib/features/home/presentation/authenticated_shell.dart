@@ -24,7 +24,14 @@ final class AuthenticatedShell extends StatelessWidget {
           IconButton(
             tooltip: strings.shellSignOut,
             icon: const Icon(Icons.logout),
-            onPressed: () => context.read<SessionCubit>().logout(),
+            onPressed: () async {
+              final success = await context.read<SessionCubit>().logout();
+              if (!success && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(strings.inkLogoutBlocked)),
+                );
+              }
+            },
           ),
         ],
       ),

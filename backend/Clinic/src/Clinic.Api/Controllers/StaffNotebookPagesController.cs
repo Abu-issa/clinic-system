@@ -29,13 +29,13 @@ public sealed class StaffNotebookPagesController(
 {
     [HttpPost("{pageId:guid}/revisions")]
     [NotebookMultipart]
-    [RequestSizeLimit(32768)]
+    [RequestSizeLimit(NotebookPayloadService.MaxRequestBytes)]
     public async Task<IResult> SaveRevision(Guid patientId, Guid pageId, CancellationToken ct)
         => await UploadRevision(patientId, pageId, false, ct);
 
     [HttpPost("{pageId:guid}/amendments")]
     [NotebookMultipart]
-    [RequestSizeLimit(32768)]
+    [RequestSizeLimit(NotebookPayloadService.MaxRequestBytes)]
     public async Task<IResult> Amend(Guid patientId, Guid pageId, CancellationToken ct)
         => await UploadRevision(patientId, pageId, true, ct);
 
@@ -59,14 +59,14 @@ public sealed class StaffNotebookPagesController(
         if (!Request.Headers.ContainsKey("Authorization") &&
             (string.IsNullOrWhiteSpace(Request.Headers["X-CSRF-TOKEN"]) || !await Csrf())) return CsrfError();
         if (await store.GetPageAsync(patientId, pageId, ct) is null) return Error(404, "page_not_found");
-        if (!Request.HasFormContentType || Request.ContentLength > 32768) return Error(400, "invalid_input");
+        if (!Request.HasFormContentType || Request.ContentLength > NotebookPayloadService.MaxRequestBytes) return Error(400, "invalid_input");
         HttpContext.Features.Set<IFormFeature>(new FormFeature(Request, new FormOptions
         {
             MultipartBodyLengthLimit = NotebookPayloadService.MaxBytes, ValueLengthLimit = 256,
-            ValueCountLimit = 4, MultipartHeadersLengthLimit = 2048, MemoryBufferThreshold = 32768
+            ValueCountLimit = 4, MultipartHeadersLengthLimit = 2048, MemoryBufferThreshold = NotebookPayloadService.MaxRequestBytes
         }));
         var original = Request.Body;
-        Request.Body = new AttachmentUploadGateAttribute.LimitedRequestStream(original, 32768, () => { });
+        Request.Body = new AttachmentUploadGateAttribute.LimitedRequestStream(original, NotebookPayloadService.MaxRequestBytes, () => { });
         try
         {
             var form = await Request.ReadFormAsync(ct);
@@ -112,8 +112,9 @@ public sealed class StaffNotebookPagesController(
             reference.Revision.Id.ToString("N"), patientId);
         if (failure is not null) return failure;
         Response.Headers.XContentTypeOptions = "nosniff";
-        Response.Headers.ContentDisposition = "attachment; filename=notebook.json";
-        return Results.Stream(new MemoryStream(bytes, writable: false), "application/json");
+        var realInk = NotebookInkPayload.Valid(bytes, patientId, pageId);
+        Response.Headers.ContentDisposition = realInk ? "attachment; filename=notebook.msgpack" : "attachment; filename=notebook.json";
+        return Results.Stream(new MemoryStream(bytes, writable: false), realInk ? "application/msgpack" : "application/json");
     }
 
     [HttpPost]

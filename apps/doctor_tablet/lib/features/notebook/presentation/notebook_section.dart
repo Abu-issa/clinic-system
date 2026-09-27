@@ -6,6 +6,7 @@ import '../../../l10n/app_localizations.dart';
 import '../data/notebook_api.dart';
 import '../state/notebook_cubit.dart';
 import 'ink_page.dart';
+import 'conflict_panel.dart';
 
 final class NotebookSection extends StatefulWidget {
   const NotebookSection({super.key, required this.patientId});
@@ -16,6 +17,12 @@ final class NotebookSection extends StatefulWidget {
 
 final class _NotebookSectionState extends State<NotebookSection> {
   final _title = TextEditingController();
+  @override
+  void didUpdateWidget(covariant NotebookSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.patientId != widget.patientId) _title.clear();
+  }
+
   @override
   void dispose() {
     _title.dispose();
@@ -48,6 +55,8 @@ final class _NotebookSectionState extends State<NotebookSection> {
         NotebookIssue.forbidden => s.notebookForbidden,
         NotebookIssue.failed => s.notebookFailed,
         NotebookIssue.title => s.notebookTitleRequired,
+        NotebookIssue.resolutionFailed => s.conflictResolutionFailed,
+        NotebookIssue.resolved => s.conflictResolved,
         null => null,
       };
       final selected = state.selected;
@@ -76,14 +85,14 @@ final class _NotebookSectionState extends State<NotebookSection> {
                   key: const Key('notebook-title'),
                   controller: _title,
                   maxLength: 200,
-                  enabled: cubit.canMutate,
+                  enabled: cubit.canCreate,
                   autocorrect: false,
                   enableSuggestions: false,
                   decoration: InputDecoration(labelText: s.notebookPageTitle),
                 ),
                 FilledButton(
                   key: const Key('notebook-create'),
-                  onPressed: !cubit.canMutate
+                  onPressed: !cubit.canCreate
                       ? null
                       : () async {
                           await cubit.create(_title.text);
@@ -94,43 +103,125 @@ final class _NotebookSectionState extends State<NotebookSection> {
                   child: Text(s.notebookCreate),
                 ),
               ],
-              for (final page in state.items)
-                ListTile(
-                  key: Key('notebook-page-${page.id}'),
-                  title: Text(page.title),
-                  subtitle: _metadata(page, s),
-                  selected: selected?.id == page.id,
-                  onTap: state.busy || state.pending != null
-                      ? null
-                      : () => cubit.open(page.id),
+              ExpansionTile(
+                key: ValueKey(
+                  'pages/${cubit.session.draftOwner}/${widget.patientId}',
                 ),
-              if (state.hasMore)
-                TextButton(
-                  onPressed: state.busy || state.pending != null
-                      ? null
-                      : cubit.loadMore,
-                  child: Text(s.notebookLoadMore),
-                ),
+                title: Text(s.notebookPages),
+                initiallyExpanded: true,
+                children: [
+                  SizedBox(
+                    height: 260,
+                    child: ListView.builder(
+                      key: const Key('notebook-page-list'),
+                      itemCount: state.items.length,
+                      itemBuilder: (context, index) {
+                        final page = state.items[index];
+                        final label = switch (state.localStates[page.id]) {
+                          'localChanges' => s.inkLocalChanges,
+                          'localSaved' => s.inkLocalSaved,
+                          'queued' => s.inkQueued,
+                          'syncing' => s.inkSyncing,
+                          'serverSynced' => s.inkServerSynced,
+                          'offline' => s.inkOffline,
+                          'conflict' => s.inkConflict,
+                          'syncFailed' => s.inkSyncFailed,
+                          _ => null,
+                        };
+                        return ListTile(
+                          key: Key('notebook-page-${page.id}'),
+                          title: Text(page.title),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _metadata(page, s),
+                              if (label != null)
+                                Text(
+                                  label,
+                                  key: Key('notebook-status-${page.id}'),
+                                ),
+                            ],
+                          ),
+                          selected: selected?.id == page.id,
+                          onTap: state.busy ? null : () => cubit.open(page.id),
+                        );
+                      },
+                    ),
+                  ),
+                  if (state.hasMore)
+                    TextButton(
+                      key: const Key('notebook-load-more'),
+                      onPressed: state.busy ? null : cubit.loadMore,
+                      child: Text(s.notebookLoadMore),
+                    ),
+                ],
+              ),
               if (selected != null &&
                   selected.patientId == widget.patientId) ...[
                 const Divider(),
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    TextButton(
+                      key: const Key('notebook-previous'),
+                      onPressed: !state.busy && cubit.hasPrevious
+                          ? cubit.previous
+                          : null,
+                      child: Text(s.notebookPrevious),
+                    ),
+                    if (cubit.selectedIndex >= 0)
+                      Text(
+                        s.notebookPosition(
+                          '${cubit.selectedIndex + 1}',
+                          '${state.items.length}${state.hasMore ? '+' : ''}',
+                        ),
+                        key: const Key('notebook-position'),
+                      ),
+                    TextButton(
+                      key: const Key('notebook-next'),
+                      onPressed: !state.busy && cubit.hasNext
+                          ? cubit.next
+                          : null,
+                      child: Text(s.notebookNext),
+                    ),
+                  ],
+                ),
                 Text(
                   selected.title,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 _metadata(selected, s),
+                if (cubit.canWrite &&
+                    cubit.activeDraft?.syncState == 'conflict')
+                  ConflictPanel(
+                    key: ValueKey(
+                      '${cubit.session.draftOwner}/${selected.patientId}/${selected.id}',
+                    ),
+                    cubit: cubit,
+                  ),
                 InkPage(
+                  key: ValueKey(
+                    'ink/${cubit.session.draftOwner}/${selected.patientId}/${selected.id}',
+                  ),
+                  drafts: cubit.session.drafts,
+                  selectedDraft: cubit.activeDraft,
+                  owner: cubit.session.draftOwner,
+                  serverRevision: selected.revision,
+                  serverRowVersion: selected.rowVersion,
                   patientId: widget.patientId,
                   pageId: selected.id,
-                  enabled: cubit.canRevise,
+                  enabled: cubit.canDraw,
                   isCurrent: () =>
                       cubit.ownsPage(widget.patientId, selected.id),
                 ),
-                Text(s.notebookRowVersion),
-                SelectableText(
-                  selected.rowVersion,
-                  textDirection: TextDirection.ltr,
-                ),
+                if (cubit.activeDraft?.syncState != 'conflict') ...[
+                  Text(s.notebookRowVersion),
+                  SelectableText(
+                    selected.rowVersion,
+                    textDirection: TextDirection.ltr,
+                  ),
+                ],
                 if (cubit.canWrite) ...[
                   if (!selected.finalized) ...[
                     FilledButton(
@@ -138,26 +229,45 @@ final class _NotebookSectionState extends State<NotebookSection> {
                       onPressed: cubit.canRevise ? () => cubit.submit() : null,
                       child: Text(s.notebookSubmit),
                     ),
-                    OutlinedButton(
-                      key: const Key('notebook-finalize'),
-                      onPressed: cubit.canRevise ? cubit.finalize : null,
-                      child: Text(s.notebookFinalize),
-                    ),
+                    if (cubit.activeDraft case final draft?)
+                      ListenableBuilder(
+                        listenable: Listenable.merge([draft, draft.ink.active]),
+                        builder: (context, _) => OutlinedButton(
+                          key: const Key('notebook-finalize'),
+                          onPressed: cubit.canFinalize ? cubit.finalize : null,
+                          child: Text(s.notebookFinalize),
+                        ),
+                      ),
                   ] else
                     FilledButton(
                       key: const Key('notebook-amend'),
                       onPressed: cubit.canAmend
-                          ? () => cubit.submit(amendment: true)
+                          ? () => cubit.editingAmendment
+                                ? cubit.submit(amendment: true)
+                                : cubit.beginAmendment()
                           : null,
-                      child: Text(s.notebookAmend),
+                      child: Text(
+                        cubit.editingAmendment
+                            ? s.notebookAmend
+                            : s.inkBeginAmendment,
+                      ),
                     ),
-                  if (state.pending != null && !state.blocked) ...[
-                    Text(s.notebookRetryHint),
-                    OutlinedButton(
-                      onPressed: state.busy ? null : cubit.retry,
-                      child: Text(s.notebookRetry),
+                  if (cubit.activeDraft case final draft?)
+                    ListenableBuilder(
+                      listenable: draft,
+                      builder: (context, _) =>
+                          draft.queuedCount > 0 &&
+                              !state.blocked &&
+                              draft.syncState != 'syncFailed' &&
+                              draft.syncState != 'conflict'
+                          ? OutlinedButton(
+                              onPressed: state.busy || draft.syncing
+                                  ? null
+                                  : cubit.retry,
+                              child: Text(s.notebookRetry),
+                            )
+                          : const SizedBox.shrink(),
                     ),
-                  ],
                 ],
               ],
             ],

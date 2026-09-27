@@ -10,6 +10,71 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get notebookPages => 'Notebook pages';
+
+  @override
+  String get notebookPrevious => 'Previous page';
+
+  @override
+  String get notebookNext => 'Next page';
+
+  @override
+  String notebookPosition(String position, String count) {
+    return 'Page $position of $count';
+  }
+
+  @override
+  String get conflictConfirmAction => 'Confirm discard mine';
+
+  @override
+  String get conflictConfirmDiscard =>
+      'This removes your unsynced ink and queued revisions for this page after the latest server ink is read successfully. This cannot be undone.';
+
+  @override
+  String get conflictDetected => 'Conflict detected';
+
+  @override
+  String get conflictDiscard => 'Discard mine';
+
+  @override
+  String get conflictExplanation =>
+      'No ink is merged automatically. Saving mine keeps the local ink as a new revision; finalized pages use an amendment.';
+
+  @override
+  String get conflictLater => 'Keep for later';
+
+  @override
+  String get conflictLocalSaved => 'Local last saved';
+
+  @override
+  String get conflictQueuedCount => 'Local queued revisions';
+
+  @override
+  String get conflictResolutionFailed =>
+      'Resolution failed. Your page remains in conflict; local work is retained.';
+
+  @override
+  String get conflictResolved => 'Resolved successfully';
+
+  @override
+  String get conflictSaveNew => 'Save mine as new revision';
+
+  @override
+  String get conflictServerRevision => 'Known server revision';
+
+  @override
+  String get conflictServerUpdated => 'Known server updated time';
+
+  @override
+  String get conflictUnknown => 'Unavailable';
+
+  @override
+  String get inkQueued => 'QUEUED';
+
+  @override
+  String get inkSyncFailed => 'SYNC FAILED';
+
+  @override
   String get appTitle => 'Doctor Workspace';
 
   @override
@@ -179,7 +244,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notebookFoundation =>
-      'Foundation actions submit metadata only. Ink is temporary and is not included in submissions.';
+      'Vector ink notebook. Finalization requires synchronized ink.';
 
   @override
   String get notebookTitleRequired => 'Enter a title of 1–200 characters.';
@@ -226,7 +291,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notebookPageTitle => 'Page title';
 
   @override
-  String get notebookSubmit => 'Submit minimal revision';
+  String get notebookSubmit => 'Sync ink revision';
 
   @override
   String get notebookEmpty => 'No notebook pages yet.';
@@ -289,4 +354,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get inkStylusActive => 'Stylus active · Finger navigation paused';
+
+  @override
+  String get inkLoading => 'Opening encrypted local draft…';
+
+  @override
+  String get inkLocalChanges => 'LOCAL CHANGES';
+
+  @override
+  String get inkLocalNotice =>
+      'Encrypted local autosave. Sync explicitly to save ink to the server.';
+
+  @override
+  String get inkLocalSaved => 'LOCAL SAVED';
+
+  @override
+  String get inkLogoutBlocked =>
+      'Sign out stopped: local draft storage failed. Keep the app open and retry saving before signing out.';
+
+  @override
+  String get inkRestoreFailed =>
+      'The local draft could not be safely opened. Ink is hidden and editing is disabled. Retry or contact support; do not clear app data.';
+
+  @override
+  String get inkRetrySave => 'Retry local storage';
+
+  @override
+  String get inkSaveFailed =>
+      'Local save failed. Changes remain in memory. Keep the app open and retry.';
+
+  @override
+  String get inkBeginAmendment => 'Start ink amendment';
+
+  @override
+  String get inkConflict => 'CONFLICT';
+
+  @override
+  String get inkOffline => 'OFFLINE — SAVED LOCALLY';
+
+  @override
+  String get inkServerSynced => 'SERVER SYNCED';
+
+  @override
+  String get inkSyncing => 'SYNCING';
 }

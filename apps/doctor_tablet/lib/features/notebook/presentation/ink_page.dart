@@ -2,11 +2,14 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'dart:math' as math;
+import 'dart:async';
 
 import '../../../l10n/app_localizations.dart';
 import '../ink/ink_controller.dart';
 import '../ink/ink_document.dart';
 import '../ink/ink_viewport.dart';
+import '../data/local_ink_draft.dart';
+import '../state/local_drafts.dart';
 
 class InkPage extends StatefulWidget {
   const InkPage({
@@ -15,9 +18,20 @@ class InkPage extends StatefulWidget {
     required this.pageId,
     required this.enabled,
     required this.isCurrent,
+    this.drafts,
+    this.owner,
+    this.serverRevision,
+    this.serverRowVersion,
+    this.selectedDraft,
   });
   final String patientId, pageId;
   final bool enabled;
+  final LocalDrafts? drafts;
+  final String? owner, serverRowVersion;
+  final int? serverRevision;
+
+  /// When supplied, navigation owns and releases this handle.
+  final DraftHandle? selectedDraft;
 
   /// Rechecks the live patient/session/page at the input boundary.
   final bool Function() isCurrent;
@@ -26,39 +40,79 @@ class InkPage extends StatefulWidget {
 }
 
 class _InkPageState extends State<InkPage> {
-  late final InkController ink;
+  late InkController ink;
+  DraftHandle? draft;
+  bool get editable =>
+      widget.enabled && (draft?.canEdit ?? widget.drafts == null);
   final view = InkViewport();
   Size? _lastSize;
   @override
   void initState() {
     super.initState();
-    ink = InkController(widget.patientId, widget.pageId);
+    _attach();
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  void _attach() {
+    if (widget.selectedDraft != null ||
+        (widget.drafts != null && widget.owner != null)) {
+      draft =
+          widget.selectedDraft ??
+          widget.drafts!.open(
+            DraftKey(widget.owner!, widget.patientId, widget.pageId),
+            revision: widget.serverRevision,
+            rowVersion: widget.serverRowVersion,
+          );
+      ink = draft!.ink;
+      draft!.addListener(_changed);
+    } else {
+      ink = InkController(widget.patientId, widget.pageId);
+    }
+  }
+
+  void _detach(LocalDrafts? manager, bool externallyOwned) {
+    final handle = draft;
+    if (handle != null) {
+      handle.removeListener(_changed);
+      if (!externallyOwned) manager!.leave(handle);
+      draft = null;
+    } else {
+      ink.dispose();
+    }
   }
 
   @override
   void didUpdateWidget(covariant InkPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.patientId != widget.patientId ||
-        oldWidget.pageId != widget.pageId) {
+        oldWidget.pageId != widget.pageId ||
+        oldWidget.owner != widget.owner ||
+        oldWidget.drafts != widget.drafts ||
+        oldWidget.selectedDraft != widget.selectedDraft) {
+      _detach(oldWidget.drafts, oldWidget.selectedDraft != null);
+      _attach();
       view.cancelContacts();
       view.reset();
     }
     ink.bind(widget.patientId, widget.pageId);
-    if (!widget.enabled || !widget.isCurrent()) {
-      ink.cancel();
+    if (!editable || !widget.isCurrent()) {
+      ink.finishActive();
       view.cancelContacts();
     }
   }
 
   @override
   void dispose() {
-    ink.dispose();
+    _detach(widget.drafts, widget.selectedDraft != null);
     view.dispose();
     super.dispose();
   }
 
   void _tool(VoidCallback update) {
-    if (!widget.enabled || !widget.isCurrent() || view.stylusActive) return;
+    if (!editable || !widget.isCurrent() || view.stylusActive) return;
     ink.cancel();
     setState(update);
   }
@@ -70,10 +124,46 @@ class _InkPageState extends State<InkPage> {
       return const SizedBox.shrink();
     }
     final s = AppLocalizations.of(context);
+    if (widget.drafts != null &&
+        (draft == null || draft!.loading || draft!.failedRestore)) {
+      return Column(
+        children: [
+          Text(draft?.loading == true ? s.inkLoading : s.inkRestoreFailed),
+          if (draft?.failedRestore == true)
+            TextButton(
+              onPressed: () => unawaited(draft!.retryRestore()),
+              child: Text(s.inkRetrySave),
+            ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(s.inkTemporary),
+        Text(draft == null ? s.inkTemporary : s.inkLocalNotice),
+        if (draft != null) ...[
+          ListenableBuilder(
+            listenable: ink.active,
+            builder: (context, _) => Text(
+              inkSaveLabel(s, draft!, ink.active.points.isNotEmpty),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              key: const Key('ink-save-state'),
+            ),
+          ),
+          // Async save results must not shift the page under an active pen.
+          Visibility(
+            visible: draft!.failed,
+            maintainState: true,
+            maintainAnimation: true,
+            maintainSize: true,
+            child: Text(s.inkSaveFailed),
+          ),
+          TextButton(
+            onPressed: draft!.failed ? () => unawaited(draft!.flush()) : null,
+            child: Text(s.inkRetrySave),
+          ),
+        ],
         ListenableBuilder(
           listenable: ink,
           builder: (context, _) => Wrap(
@@ -83,14 +173,14 @@ class _InkPageState extends State<InkPage> {
               ChoiceChip(
                 label: Text(s.inkPen),
                 selected: ink.tool == InkTool.pen,
-                onSelected: widget.enabled
+                onSelected: editable
                     ? (_) => _tool(() => ink.tool = InkTool.pen)
                     : null,
               ),
               ChoiceChip(
                 label: Text(s.inkEraser),
                 selected: ink.tool == InkTool.eraser,
-                onSelected: widget.enabled
+                onSelected: editable
                     ? (_) => _tool(() => ink.tool = InkTool.eraser)
                     : null,
               ),
@@ -102,7 +192,7 @@ class _InkPageState extends State<InkPage> {
                 ChoiceChip(
                   label: Text(entry.$2),
                   selected: ink.width == entry.$1,
-                  onSelected: widget.enabled
+                  onSelected: editable
                       ? (_) => _tool(() => ink.width = entry.$1)
                       : null,
                 ),
@@ -115,21 +205,21 @@ class _InkPageState extends State<InkPage> {
                   label: Text(entry.$2),
                   avatar: Icon(Icons.circle, color: Color(entry.$1), size: 16),
                   selected: ink.color == entry.$1,
-                  onSelected: widget.enabled
+                  onSelected: editable
                       ? (_) => _tool(() => ink.color = entry.$1)
                       : null,
                 ),
               IconButton(
                 tooltip: s.inkUndo,
                 icon: const Icon(Icons.undo),
-                onPressed: widget.enabled && ink.canUndo
+                onPressed: editable && ink.canUndo
                     ? () => _tool(ink.undo)
                     : null,
               ),
               IconButton(
                 tooltip: s.inkRedo,
                 icon: const Icon(Icons.redo),
-                onPressed: widget.enabled && ink.canRedo
+                onPressed: editable && ink.canRedo
                     ? () => _tool(ink.redo)
                     : null,
               ),
@@ -194,7 +284,7 @@ class _InkPageState extends State<InkPage> {
                     size,
                     patientId: widget.patientId,
                     pageId: widget.pageId,
-                    enabled: widget.enabled && widget.isCurrent(),
+                    enabled: editable && widget.isCurrent(),
                     pagePosition: view.toPage(event.localPosition, size),
                   );
                 }
@@ -295,6 +385,17 @@ class _InkPageState extends State<InkPage> {
       ],
     );
   }
+}
+
+String inkSaveLabel(AppLocalizations s, DraftHandle draft, bool active) {
+  if (draft.syncing) return s.inkSyncing;
+  if (draft.syncState == 'conflict') return s.inkConflict;
+  if (draft.syncState == 'syncFailed') return s.inkSyncFailed;
+  if (draft.dirty || !draft.saved || active) return s.inkLocalChanges;
+  if (draft.syncState == 'offline') return s.inkOffline;
+  if (draft.syncState == 'queued' || draft.queuedCount > 0) return s.inkQueued;
+  if (draft.serverSynced) return s.inkServerSynced;
+  return s.inkLocalSaved;
 }
 
 class InkPainter extends CustomPainter {

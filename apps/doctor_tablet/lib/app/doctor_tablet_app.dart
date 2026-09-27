@@ -1,4 +1,7 @@
 import 'package:doctor_tablet/l10n/app_localizations.dart';
+
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -84,8 +87,36 @@ final class DoctorTabletApp extends StatelessWidget {
 
 /// Maps the session state machine onto full-screen destinations. The first
 /// frame always renders the startup screen.
-final class _SessionRouter extends StatelessWidget {
+final class _SessionRouter extends StatefulWidget {
   const _SessionRouter();
+  @override
+  State<_SessionRouter> createState() => _SessionRouterState();
+}
+
+final class _SessionRouterState extends State<_SessionRouter>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    context.read<NotebookCubit>().queue?.setForeground(state == AppLifecycleState.resumed);
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      unawaited(context.read<SessionCubit>().drafts.flushAll());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

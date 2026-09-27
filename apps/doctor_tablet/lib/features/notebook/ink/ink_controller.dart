@@ -72,13 +72,24 @@ final class InkController extends ChangeNotifier {
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
 
+  void releaseHistory() {
+    finishActive();
+    cancel();
+    _undo.clear();
+    _redo.clear();
+  }
+
   void restore(InkDocument document) {
     if (!_document.matches(document.patientId, document.pageId)) {
       throw const FormatException('Ink binding mismatch');
     }
     cancel();
-    _undo.clear(); _redo.clear();
-    _nextId = document.strokes.fold(0, (next, stroke) => math.max(next, stroke.id + 1));
+    _undo.clear();
+    _redo.clear();
+    _nextId = document.strokes.fold(
+      0,
+      (next, stroke) => math.max(next, stroke.id + 1),
+    );
     _document = document;
     notifyListeners();
   }

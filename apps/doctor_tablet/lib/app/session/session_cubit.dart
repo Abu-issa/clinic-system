@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,6 +8,8 @@ import 'package:clinic_core/clinic_core.dart';
 import '../../core/api/api_client_factory.dart';
 import '../../features/auth/data/mobile_auth.dart';
 import '../../features/auth/data/token_store.dart';
+import '../../features/notebook/data/encrypted_draft_store.dart';
+import '../../features/notebook/state/local_drafts.dart';
 
 sealed class SessionState extends Equatable {
   const SessionState();
@@ -61,7 +64,9 @@ final class SessionExpired extends SessionState {
 }
 
 final class SessionCubit extends Cubit<SessionState> {
-  SessionCubit(this.auth) : super(const SessionStarting()) {
+  SessionCubit(this.auth, {DraftStore? draftStore})
+    : drafts = LocalDrafts(draftStore ?? EncryptedDraftStore()),
+      super(const SessionStarting()) {
     _subscription = auth?.events.listen((event) {
       if (isClosed || state is SessionLoggingOut) return;
       switch (event) {
@@ -74,6 +79,7 @@ final class SessionCubit extends Cubit<SessionState> {
                 : SessionAuthenticated(_staff!),
           );
         case AuthEvent.expired:
+          unawaited(drafts.flushAll());
           _staff = null;
           emit(const SessionExpired());
       }
@@ -95,6 +101,11 @@ final class SessionCubit extends Cubit<SessionState> {
     }
   }
   final MobileAuth? auth;
+  final LocalDrafts drafts;
+  String? get draftOwner => _staff == null
+      ? null
+      : jsonEncode([auth?.transport.options.baseUrl, _staff!.staffId]);
+  bool _logoutCheck = false;
   StreamSubscription<AuthEvent>? _subscription;
   StaffSession? _staff;
   int _operation = 0;
@@ -167,8 +178,12 @@ final class SessionCubit extends Cubit<SessionState> {
     emit(const SessionUnauthenticated());
   }
 
-  Future<void> logout() async {
-    if (state is SessionLoggingOut) return;
+  Future<bool> logout() async {
+    if (state is SessionLoggingOut || _logoutCheck) return false;
+    _logoutCheck = true;
+    final persisted = await drafts.flushAll(forLogout: true);
+    _logoutCheck = false;
+    if (!persisted || isClosed) return false;
     _operation++;
     emit(const SessionLoggingOut());
     try {
@@ -179,6 +194,7 @@ final class SessionCubit extends Cubit<SessionState> {
     } finally {
       _staff = null;
     }
+    return true;
   }
 
   AuthIssue _issue(Object e) => e is AuthFailure ? e.issue : AuthIssue.network;
@@ -186,6 +202,7 @@ final class SessionCubit extends Cubit<SessionState> {
   Future<void> close() async {
     _operation++;
     await _subscription?.cancel();
+    await drafts.close();
     await auth?.dispose();
     return super.close();
   }

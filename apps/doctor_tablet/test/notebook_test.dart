@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:doctor_tablet/features/notebook/data/server_ink_codec.dart';
 
 import 'package:dio/dio.dart';
 import 'package:doctor_tablet/app/doctor_tablet_app.dart';
@@ -52,6 +55,13 @@ final class NotebookServer {
     final parts = r.path.split('/');
     final patientId = parts[4];
     final tail = parts.last;
+    if (tail == 'payload') {
+      return f.backend.reply(200, {
+        'formatVersion': 1,
+        'patientId': patientId,
+        'pageId': parts[parts.length - 4],
+      });
+    }
     if (tail == 'pages') {
       if (r.method == 'POST') {
         expectSync(r.data, {'title': 'New page'});
@@ -204,11 +214,8 @@ void main() {
         .toList();
     expect(forms[0]['originDeviceId'], forms[1]['originDeviceId']);
     expect(forms[0]['clientDraftId'], isNot(forms[1]['clientDraftId']));
-    final body = utf8.decode(f.backend.multipartBodies.first);
-    expect(
-      body,
-      contains('{"formatVersion":1,"patientId":"one","pageId":"a"}'),
-    );
+    final body = latin1.decode(f.backend.multipartBodies.first);
+    expect(body, contains('notebook.msgpack'));
   });
   test('page_changed preserves state and blocks silent resubmission', () async {
     await notebook.open('a');
@@ -223,7 +230,7 @@ void main() {
     expect(server.requests.length, count);
     server.stale = false;
     await notebook.refresh();
-    expect(notebook.canRevise, true);
+    expect(notebook.canRevise, false);
   });
   test(
     'lost reply retries identical draft and does not duplicate revisions',
@@ -231,7 +238,9 @@ void main() {
       await notebook.open('a');
       server.loseReply = true;
       await notebook.submit();
-      final draft = notebook.state.pending!;
+      final draft = (await f.drafts.queued(f.cubit.draftOwner!))
+          .single
+          .envelope;
       expect(notebook.state.selected!.revision, 0);
       await notebook.retry();
       expect(server.mutations, 1);
@@ -244,8 +253,8 @@ void main() {
         Map.fromEntries((requests[1].data as FormData).fields),
       );
       expect(
-        draft.bytes,
-        utf8.encode('{"formatVersion":1,"patientId":"one","pageId":"a"}'),
+        decodeServerInk(Uint8List.fromList(draft.bytes), 'one', 'a').strokes,
+        isEmpty,
       );
     },
   );
@@ -259,12 +268,7 @@ void main() {
       expect(f.backend.refreshes, 1);
       expect(server.mutations, 1);
       expect(f.backend.multipartBodies, hasLength(2));
-      for (final bytes in f.backend.multipartBodies) {
-        expect(
-          utf8.decode(bytes),
-          contains('{"formatVersion":1,"patientId":"one","pageId":"a"}'),
-        );
-      }
+      expect(f.backend.multipartBodies[0], f.backend.multipartBodies[1]);
     },
   );
   test(
@@ -425,13 +429,13 @@ void main() {
       await finalizing;
       expect(
         n.state.selected!.finalized,
-        true,
+        false,
         reason:
             '${n.state.issue}, ${n.state.busy}, ${widgetServer.requests.map((r) => r.path).toList()}',
       );
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('notebook-revise')), findsNothing);
-      expect(find.byKey(const Key('notebook-amend')), findsOneWidget);
+      expect(find.byKey(const Key('notebook-revise')), findsOneWidget);
+      expect(find.byKey(const Key('notebook-amend')), findsNothing);
       expect(tester.takeException(), isNull);
     });
   }

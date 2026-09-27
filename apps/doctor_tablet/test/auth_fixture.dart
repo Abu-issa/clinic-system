@@ -9,6 +9,8 @@ import 'package:doctor_tablet/core/api/api_client_factory.dart';
 import 'package:doctor_tablet/features/auth/data/mobile_auth.dart';
 import 'package:doctor_tablet/features/auth/data/token_store.dart';
 
+import 'draft_fixture.dart';
+
 final class MemoryTokens implements TokenStore {
   String? value;
   int writes = 0;
@@ -31,6 +33,7 @@ final class MemoryTokens implements TokenStore {
 }
 
 final class FakeClinic implements HttpClientAdapter {
+  String staffId = 'staff-1';
   int version = 0;
   int refreshes = 0;
   int sessionCalls = 0;
@@ -136,7 +139,7 @@ final class FakeClinic implements HttpClientAdapter {
         'hasMore': false,
       });
     }
-    return reply(200, {'staffId': 'staff-1', 'roles': roles});
+    return reply(200, {'staffId': staffId, 'roles': roles});
   }
 
   ResponseBody reply(int code, Map<String, dynamic> body) =>
@@ -159,10 +162,11 @@ final class AuthFixture {
     final transport = factory.create()..httpClientAdapter = backend;
     api = factory.create()..httpClientAdapter = backend;
     auth = MobileAuth(transport: transport, api: api, store: store);
-    cubit = SessionCubit(auth);
+    cubit = SessionCubit(auth, draftStore: drafts);
   }
   final backend = FakeClinic();
   final store = MemoryTokens();
+  final drafts = MemoryDraftStore();
   late final Dio api;
   late final MobileAuth auth;
   late final SessionCubit cubit;

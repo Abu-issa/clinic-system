@@ -10,6 +10,71 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
+  String get notebookPages => 'صفحات الدفتر';
+
+  @override
+  String get notebookPrevious => 'الصفحة السابقة';
+
+  @override
+  String get notebookNext => 'الصفحة التالية';
+
+  @override
+  String notebookPosition(String position, String count) {
+    return 'الصفحة $position من $count';
+  }
+
+  @override
+  String get conflictConfirmAction => 'تأكيد تجاهل تعديلاتي';
+
+  @override
+  String get conflictConfirmDiscard =>
+      'سيتم حذف الحبر غير المتزامن والمراجعات المعلقة لهذه الصفحة بعد قراءة أحدث حبر من الخادم بنجاح. لا يمكن التراجع عن ذلك.';
+
+  @override
+  String get conflictDetected => 'تم اكتشاف تعارض';
+
+  @override
+  String get conflictDiscard => 'تجاهل تعديلاتي';
+
+  @override
+  String get conflictExplanation =>
+      'لن يتم دمج الحبر تلقائياً. حفظ تعديلاتي يحتفظ بالحبر المحلي كمراجعة جديدة؛ وتستخدم الصفحات النهائية ملحق تعديل.';
+
+  @override
+  String get conflictLater => 'اتخاذ القرار لاحقاً';
+
+  @override
+  String get conflictLocalSaved => 'آخر حفظ محلي';
+
+  @override
+  String get conflictQueuedCount => 'المراجعات المحلية المعلقة';
+
+  @override
+  String get conflictResolutionFailed =>
+      'فشلت معالجة التعارض. تبقى الصفحة في حالة تعارض وتبقى تعديلاتك المحلية محفوظة.';
+
+  @override
+  String get conflictResolved => 'تمت معالجة التعارض بنجاح';
+
+  @override
+  String get conflictSaveNew => 'حفظ تعديلاتي كمراجعة جديدة';
+
+  @override
+  String get conflictServerRevision => 'مراجعة الخادم المعروفة';
+
+  @override
+  String get conflictServerUpdated => 'وقت تحديث الخادم المعروف';
+
+  @override
+  String get conflictUnknown => 'غير متاح';
+
+  @override
+  String get inkQueued => 'في قائمة المزامنة';
+
+  @override
+  String get inkSyncFailed => 'فشلت المزامنة';
+
+  @override
   String get appTitle => 'مساحة الطبيب';
 
   @override
@@ -175,7 +240,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get notebookFoundation =>
-      'ترسل إجراءات التأسيس البيانات الوصفية فقط. الحبر مؤقت ولا يُضمّن في الإرسال.';
+      'دفتر حبر متجهي. يتطلب الاعتماد مزامنة الحبر.';
 
   @override
   String get notebookTitleRequired => 'أدخل عنواناً من ١ إلى ٢٠٠ حرف.';
@@ -222,7 +287,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notebookPageTitle => 'عنوان الصفحة';
 
   @override
-  String get notebookSubmit => 'إرسال مراجعة أولية';
+  String get notebookSubmit => 'مزامنة نسخة الحبر';
 
   @override
   String get notebookEmpty => 'لا توجد صفحات بعد.';
@@ -285,4 +350,47 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get inkStylusActive => 'القلم نشط · التنقل بالأصابع متوقف';
+
+  @override
+  String get inkLoading => 'جارٍ فتح المسودة المحلية المشفرة…';
+
+  @override
+  String get inkLocalChanges => 'تغييرات محلية';
+
+  @override
+  String get inkLocalNotice =>
+      'حفظ محلي مشفر تلقائي. استخدم المزامنة لحفظ الحبر على الخادم.';
+
+  @override
+  String get inkLocalSaved => 'محفوظ محلياً';
+
+  @override
+  String get inkLogoutBlocked =>
+      'تم إيقاف تسجيل الخروج بسبب فشل تخزين المسودة محلياً. أبقِ التطبيق مفتوحاً وأعد محاولة الحفظ قبل الخروج.';
+
+  @override
+  String get inkRestoreFailed =>
+      'تعذر فتح المسودة المحلية بأمان. الحبر مخفي والتحرير معطل. أعد المحاولة أو اتصل بالدعم؛ لا تمسح بيانات التطبيق.';
+
+  @override
+  String get inkRetrySave => 'إعادة محاولة التخزين المحلي';
+
+  @override
+  String get inkSaveFailed =>
+      'فشل الحفظ المحلي. التغييرات باقية في الذاكرة. أبقِ التطبيق مفتوحاً وأعد المحاولة.';
+
+  @override
+  String get inkBeginAmendment => 'بدء تعديل الحبر';
+
+  @override
+  String get inkConflict => 'تعارض';
+
+  @override
+  String get inkOffline => 'غير متصل — محفوظ محلياً';
+
+  @override
+  String get inkServerSynced => 'تمت المزامنة مع الخادم';
+
+  @override
+  String get inkSyncing => 'جارٍ المزامنة';
 }

@@ -13,10 +13,14 @@ public sealed record NotebookSaveResult(string? Error, Guid? RevisionId = null, 
 public sealed class NotebookPayloadService(INotebookStore store, IFileStorage storage,
     IAuditMutationWriter audit, TimeProvider clock)
 {
-    public const int MaxBytes = 16384;
+    public const int MaxBytes = NotebookInkPayload.MaxBytes;
+    public const int MaxRequestBytes = MaxBytes + 16384;
 
     public static bool ValidPayload(byte[] bytes, Guid patientId, Guid pageId)
     {
+        if (NotebookInkPayload.Valid(bytes, patientId, pageId)) return true;
+        // Version 1 remains immutable JSON for existing clients/history.
+        if (bytes.Length > 16384) return false;
         try
         {
             using var doc = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 4 });
@@ -80,7 +84,9 @@ public sealed class NotebookPayloadService(INotebookStore store, IFileStorage st
             }
             if (!page.RowVersion.SequenceEqual(expectedVersion)) return new("page_changed");
             var key = FileStorageKey.NewStorageKey();
-            var file = new StoredFile(key, "notebook.json", "application/json", staged.SizeBytes,
+            var realInk = NotebookInkPayload.Valid(bytes, patientId, pageId);
+            var file = new StoredFile(key, realInk ? "notebook.msgpack" : "notebook.json",
+                realInk ? "application/msgpack" : "application/json", staged.SizeBytes,
                 staged.Sha256, actor, clock.GetUtcNow());
             var revision = amendment ? page.AppendAmendment(file.Id, actor, clock.GetUtcNow(), draft, device)
                 : page.AppendPayload(file.Id, actor, clock.GetUtcNow(), draft, device);

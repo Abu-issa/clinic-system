@@ -98,6 +98,126 @@ abstract class AppLocalizations {
     Locale('en'),
   ];
 
+  /// No description provided for @notebookPages.
+  ///
+  /// In ar, this message translates to:
+  /// **'صفحات الدفتر'**
+  String get notebookPages;
+
+  /// No description provided for @notebookPrevious.
+  ///
+  /// In ar, this message translates to:
+  /// **'الصفحة السابقة'**
+  String get notebookPrevious;
+
+  /// No description provided for @notebookNext.
+  ///
+  /// In ar, this message translates to:
+  /// **'الصفحة التالية'**
+  String get notebookNext;
+
+  /// No description provided for @notebookPosition.
+  ///
+  /// In ar, this message translates to:
+  /// **'الصفحة {position} من {count}'**
+  String notebookPosition(String position, String count);
+
+  /// No description provided for @conflictConfirmAction.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد تجاهل تعديلاتي'**
+  String get conflictConfirmAction;
+
+  /// No description provided for @conflictConfirmDiscard.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيتم حذف الحبر غير المتزامن والمراجعات المعلقة لهذه الصفحة بعد قراءة أحدث حبر من الخادم بنجاح. لا يمكن التراجع عن ذلك.'**
+  String get conflictConfirmDiscard;
+
+  /// No description provided for @conflictDetected.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم اكتشاف تعارض'**
+  String get conflictDetected;
+
+  /// No description provided for @conflictDiscard.
+  ///
+  /// In ar, this message translates to:
+  /// **'تجاهل تعديلاتي'**
+  String get conflictDiscard;
+
+  /// No description provided for @conflictExplanation.
+  ///
+  /// In ar, this message translates to:
+  /// **'لن يتم دمج الحبر تلقائياً. حفظ تعديلاتي يحتفظ بالحبر المحلي كمراجعة جديدة؛ وتستخدم الصفحات النهائية ملحق تعديل.'**
+  String get conflictExplanation;
+
+  /// No description provided for @conflictLater.
+  ///
+  /// In ar, this message translates to:
+  /// **'اتخاذ القرار لاحقاً'**
+  String get conflictLater;
+
+  /// No description provided for @conflictLocalSaved.
+  ///
+  /// In ar, this message translates to:
+  /// **'آخر حفظ محلي'**
+  String get conflictLocalSaved;
+
+  /// No description provided for @conflictQueuedCount.
+  ///
+  /// In ar, this message translates to:
+  /// **'المراجعات المحلية المعلقة'**
+  String get conflictQueuedCount;
+
+  /// No description provided for @conflictResolutionFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'فشلت معالجة التعارض. تبقى الصفحة في حالة تعارض وتبقى تعديلاتك المحلية محفوظة.'**
+  String get conflictResolutionFailed;
+
+  /// No description provided for @conflictResolved.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت معالجة التعارض بنجاح'**
+  String get conflictResolved;
+
+  /// No description provided for @conflictSaveNew.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ تعديلاتي كمراجعة جديدة'**
+  String get conflictSaveNew;
+
+  /// No description provided for @conflictServerRevision.
+  ///
+  /// In ar, this message translates to:
+  /// **'مراجعة الخادم المعروفة'**
+  String get conflictServerRevision;
+
+  /// No description provided for @conflictServerUpdated.
+  ///
+  /// In ar, this message translates to:
+  /// **'وقت تحديث الخادم المعروف'**
+  String get conflictServerUpdated;
+
+  /// No description provided for @conflictUnknown.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متاح'**
+  String get conflictUnknown;
+
+  /// No description provided for @inkQueued.
+  ///
+  /// In ar, this message translates to:
+  /// **'في قائمة المزامنة'**
+  String get inkQueued;
+
+  /// No description provided for @inkSyncFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'فشلت المزامنة'**
+  String get inkSyncFailed;
+
   /// Application name shown in the app bar and window title.
   ///
   /// In ar, this message translates to:
@@ -407,7 +527,7 @@ abstract class AppLocalizations {
   /// No description provided for @notebookFoundation.
   ///
   /// In ar, this message translates to:
-  /// **'ترسل إجراءات التأسيس البيانات الوصفية فقط. الحبر مؤقت ولا يُضمّن في الإرسال.'**
+  /// **'دفتر حبر متجهي. يتطلب الاعتماد مزامنة الحبر.'**
   String get notebookFoundation;
 
   /// No description provided for @notebookTitleRequired.
@@ -497,7 +617,7 @@ abstract class AppLocalizations {
   /// No description provided for @notebookSubmit.
   ///
   /// In ar, this message translates to:
-  /// **'إرسال مراجعة أولية'**
+  /// **'مزامنة نسخة الحبر'**
   String get notebookSubmit;
 
   /// No description provided for @notebookEmpty.
@@ -619,6 +739,84 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'القلم نشط · التنقل بالأصابع متوقف'**
   String get inkStylusActive;
+
+  /// No description provided for @inkLoading.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ فتح المسودة المحلية المشفرة…'**
+  String get inkLoading;
+
+  /// No description provided for @inkLocalChanges.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغييرات محلية'**
+  String get inkLocalChanges;
+
+  /// No description provided for @inkLocalNotice.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ محلي مشفر تلقائي. استخدم المزامنة لحفظ الحبر على الخادم.'**
+  String get inkLocalNotice;
+
+  /// No description provided for @inkLocalSaved.
+  ///
+  /// In ar, this message translates to:
+  /// **'محفوظ محلياً'**
+  String get inkLocalSaved;
+
+  /// No description provided for @inkLogoutBlocked.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إيقاف تسجيل الخروج بسبب فشل تخزين المسودة محلياً. أبقِ التطبيق مفتوحاً وأعد محاولة الحفظ قبل الخروج.'**
+  String get inkLogoutBlocked;
+
+  /// No description provided for @inkRestoreFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذر فتح المسودة المحلية بأمان. الحبر مخفي والتحرير معطل. أعد المحاولة أو اتصل بالدعم؛ لا تمسح بيانات التطبيق.'**
+  String get inkRestoreFailed;
+
+  /// No description provided for @inkRetrySave.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة محاولة التخزين المحلي'**
+  String get inkRetrySave;
+
+  /// No description provided for @inkSaveFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'فشل الحفظ المحلي. التغييرات باقية في الذاكرة. أبقِ التطبيق مفتوحاً وأعد المحاولة.'**
+  String get inkSaveFailed;
+
+  /// No description provided for @inkBeginAmendment.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدء تعديل الحبر'**
+  String get inkBeginAmendment;
+
+  /// No description provided for @inkConflict.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعارض'**
+  String get inkConflict;
+
+  /// No description provided for @inkOffline.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متصل — محفوظ محلياً'**
+  String get inkOffline;
+
+  /// No description provided for @inkServerSynced.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت المزامنة مع الخادم'**
+  String get inkServerSynced;
+
+  /// No description provided for @inkSyncing.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ المزامنة'**
+  String get inkSyncing;
 }
 
 class _AppLocalizationsDelegate
