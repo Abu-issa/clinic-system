@@ -7,6 +7,11 @@ namespace Clinic.Infrastructure.Repositories;
 
 public sealed class NotebookStore(ClinicDbContext db, DbContextOptions<ClinicDbContext> options) : INotebookStore
 {
+    public async Task<IReadOnlyList<NotebookRevisionMetadata>> ListRevisionsAsync(Guid pageId, int page, int pageSize, CancellationToken ct) =>
+        await db.Set<NotebookRevision>().AsNoTracking().Where(x => x.PageId == pageId)
+            .OrderByDescending(x => x.RevisionNumber).Skip((page - 1) * pageSize).Take(pageSize + 1)
+            .Select(x => new NotebookRevisionMetadata(x.RevisionNumber, x.AuthorStaffId,
+                x.CreatedAtUtc, x.Kind, x.StoredFileId != null)).ToArrayAsync(ct);
     public Task<bool> PatientExistsAsync(Guid patientId, CancellationToken ct = default) =>
         db.Patients.AnyAsync(x => x.Id == patientId, ct);
 

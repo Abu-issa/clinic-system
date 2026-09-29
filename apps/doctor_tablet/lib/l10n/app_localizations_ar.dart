@@ -10,6 +10,46 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
+  String get inkDocumentRejected =>
+      'تعذر مزامنة الحبر بسبب الحجم أو التنسيق غير المدعوم. تحقق من حالة الحفظ المحلي. لم يُحذف أي حبر. احتفظ بالمسودة وافتح صفحة جديدة لمتابعة الكتابة أو تواصل مع الدعم.';
+
+  @override
+  String get historyTitle => 'سجل الإصدارات';
+
+  @override
+  String get historyReadOnly => 'للقراءة فقط / إصدار سابق';
+
+  @override
+  String get historyBack => 'العودة إلى الصفحة الحالية';
+
+  @override
+  String get historyFailed => 'تعذر تحميل السجل. لم تتغير مسودتك الحالية.';
+
+  @override
+  String get historyCreated => 'إنشاء';
+
+  @override
+  String get historyRevision => 'إصدار';
+
+  @override
+  String get historyAmendment => 'تعديل لاحق';
+
+  @override
+  String get historyLatest => 'الحالي / الأحدث';
+
+  @override
+  String get historyAuthor => 'الكاتب';
+
+  @override
+  String get historySelected => 'الإصدار المحدد';
+
+  @override
+  String get historyLegacy => 'إصدار قديم — لا يحتوي على حبر محفوظ';
+
+  @override
+  String get historyNoInk => 'إنشاء الصفحة — لا يوجد حبر محفوظ';
+
+  @override
   String get notebookPages => 'صفحات الدفتر';
 
   @override

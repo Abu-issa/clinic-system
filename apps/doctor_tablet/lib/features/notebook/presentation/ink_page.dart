@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'dart:async';
 
+import '../ink/committed_ink_cache.dart';
+
 import '../../../l10n/app_localizations.dart';
 import '../ink/ink_controller.dart';
 import '../ink/ink_document.dart';
@@ -350,13 +352,9 @@ class _InkPageState extends State<InkPage> {
                                           child: ListenableBuilder(
                                             listenable: ink,
                                             builder: (context, _) =>
-                                                CustomPaint(
-                                                  key: const Key(
-                                                    'ink-committed',
-                                                  ),
-                                                  painter: InkPainter(
-                                                    ink.document.strokes,
-                                                  ),
+                                                CommittedInkView(
+                                                  strokes: ink.document.strokes,
+                                                  viewport: view,
                                                 ),
                                           ),
                                         ),
@@ -399,16 +397,35 @@ String inkSaveLabel(AppLocalizations s, DraftHandle draft, bool active) {
 }
 
 class InkPainter extends CustomPainter {
-  InkPainter(this.strokes);
+  InkPainter(this.strokes, {this.cache, this.viewport})
+    : super(
+        repaint: cache == null ? null : Listenable.merge([cache, ?viewport]),
+      );
   final List<InkStroke> strokes;
+  final CommittedInkCache? cache;
+  final InkViewport? viewport;
   @override
   void paint(Canvas canvas, Size size) {
+    var start = 0;
+    final cached = cache;
+    if (cached?.image case final image?) {
+      if ((viewport?.zoom ?? 1) <= cached!.maxZoom) {
+        canvas.drawImageRect(
+          image,
+          Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+          Offset.zero & size,
+          Paint()..filterQuality = FilterQuality.medium,
+        );
+        start = cached.cachedCount;
+      }
+    }
     canvas.save();
     canvas.scale(
       size.width / InkDocument.width,
       size.height / InkDocument.height,
     );
-    for (final stroke in strokes) {
+    for (var index = start; index < strokes.length; index++) {
+      final stroke = strokes[index];
       final pressure = stroke.usesPressure;
       final paint = Paint()
         ..color = Color(stroke.color)
@@ -435,7 +452,51 @@ class InkPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant InkPainter oldDelegate) =>
-      !identical(strokes, oldDelegate.strokes);
+      !identical(strokes, oldDelegate.strokes) || cache != oldDelegate.cache;
+}
+
+class CommittedInkView extends StatefulWidget {
+  const CommittedInkView({
+    super.key,
+    required this.strokes,
+    this.viewport,
+    this.paintKey = const Key('ink-committed'),
+  });
+  final List<InkStroke> strokes;
+  final InkViewport? viewport;
+  final Key paintKey;
+  @override
+  State<CommittedInkView> createState() => _CommittedInkViewState();
+}
+
+class _CommittedInkViewState extends State<CommittedInkView> {
+  late final cache = CommittedInkCache(
+    (canvas, size, strokes) => InkPainter(strokes).paint(canvas, size),
+  );
+  @override
+  void dispose() {
+    cache.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      cache.update(
+        widget.strokes,
+        constraints.biggest,
+        MediaQuery.devicePixelRatioOf(context),
+      );
+      return CustomPaint(
+        key: widget.paintKey,
+        painter: InkPainter(
+          widget.strokes,
+          cache: cache,
+          viewport: widget.viewport,
+        ),
+      );
+    },
+  );
 }
 
 /// Direct repaint notification coalesces pointer samples into display frames;

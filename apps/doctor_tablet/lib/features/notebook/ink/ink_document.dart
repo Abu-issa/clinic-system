@@ -27,7 +27,10 @@ final class InkStroke {
 
   // A constant reading (including the common synthetic 1.0) is not evidence
   // of pressure support. Any invalid sample makes this stroke fixed-width.
-  bool get usesPressure {
+  // Points are immutable. Cache this scan instead of repeating it whenever
+  // the committed layer paints during viewport navigation.
+  late final bool usesPressure = _usesPressure();
+  bool _usesPressure() {
     if (points.length < 2 || points.any((p) => p.pressure == null)) {
       return false;
     }

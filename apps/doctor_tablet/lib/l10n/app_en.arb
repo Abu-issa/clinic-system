@@ -1,4 +1,6 @@
 {
+"inkDocumentRejected":"This ink cannot be synced: it exceeds the supported size or format. Check the local save status. No ink was removed. Keep this draft; start a new notebook page for further writing or contact support.",
+"historyTitle":"History", "historyReadOnly":"READ ONLY / HISTORICAL REVISION", "historyBack":"Back to Current Page", "historyFailed":"History could not be loaded. Your current draft is unchanged.", "historyCreated":"Created", "historyRevision":"Revision", "historyAmendment":"Amendment", "historyLatest":"Current / latest", "historyAuthor":"Author", "historySelected":"Selected revision", "historyLegacy":"Legacy revision — no stored ink", "historyNoInk":"Page creation — no stored ink",
 "notebookPages": "Notebook pages", "notebookPrevious": "Previous page", "notebookNext": "Next page", "notebookPosition": "Page {position} of {count}", "@notebookPosition": {"placeholders": {"position": {"type": "String"}, "count": {"type": "String"}}},
   "conflictConfirmAction": "Confirm discard mine",
   "conflictConfirmDiscard": "This removes your unsynced ink and queued revisions for this page after the latest server ink is read successfully. This cannot be undone.",

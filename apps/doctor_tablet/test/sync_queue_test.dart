@@ -241,6 +241,26 @@ void main() {
     expect(server.mutations, 1);
   });
 
+  test('pause during an in-flight upload retains exact work and resume acknowledges once', () async {
+    await enqueue();
+    final original = (await f.drafts.queued(owner!)).single;
+    server.gate = Completer<void>();
+    final draining = queue.drain();
+    await until(() => server.requests.any((r) => r.data is FormData));
+    queue.setForeground(false);
+    server.gate!.complete();
+    await draining;
+    final retained = (await f.drafts.queued(owner!)).single;
+    expect(retained.id, original.id);
+    expect(retained.envelope.bytes, original.envelope.bytes);
+    expect(h.serverSynced, isFalse);
+    queue.setForeground(true);
+    await queue.drain(force: true);
+    expect(await f.drafts.queued(owner!), isEmpty);
+    expect(server.mutations, 1);
+    expect(h.serverSynced, isTrue);
+  });
+
   test('foreground startup automatically drains persisted work', () async {
     await enqueue();
     queue.start();

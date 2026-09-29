@@ -12,9 +12,12 @@ import '../data/local_ink_draft.dart';
 import 'local_drafts.dart';
 import 'notebook_sync_queue.dart';
 import '../data/server_ink_codec.dart';
+import '../data/notebook_history_api.dart';
+import 'notebook_history.dart';
 
 enum NotebookIssue {
   failed,
+  documentRejected,
   forbidden,
   changed,
   conflict,
@@ -77,6 +80,15 @@ final class NotebookState {
 final class NotebookCubit extends Cubit<NotebookState> {
   NotebookCubit(this.session, this.patients, this.api)
     : super(const NotebookState()) {
+    history = NotebookHistory(
+      api == null ? null : NotebookHistoryApi(api!.dio),
+      () {
+        final selected = state.selected, owner = session.draftOwner;
+        return _current && selected != null && owner != null
+            ? DraftKey(owner, selected.patientId, selected.id)
+            : null;
+      },
+    );
     _owner = _staff;
     if (api != null) {
       queue = NotebookSyncQueue(
@@ -111,6 +123,7 @@ final class NotebookCubit extends Cubit<NotebookState> {
         onStopped: (key, status, code) {
           if (!ownsPage(key.patientId, key.pageId)) return;
           if (status == 401 || status == 403 || status == 404) {
+            history.closeView();
             final handle = activeDraft;
             if (handle != null) session.drafts.leave(handle);
             _selectedHandle = null;
@@ -144,6 +157,12 @@ final class NotebookCubit extends Cubit<NotebookState> {
   final PatientContextCubit patients;
   final NotebookApi? api;
   NotebookSyncQueue? queue;
+  late final NotebookHistory history;
+  Future<void> showHistory() async {
+    if (!_current || state.busy || activeDraft?.ink.hasContact == true) return;
+    await history.open();
+  }
+
   String? get _currentOwner =>
       !isClosed && canWrite ? session.draftOwner : null;
   final String originDeviceId = notebookIdentifier();
@@ -273,6 +292,7 @@ final class NotebookCubit extends Cubit<NotebookState> {
       state.patientId == patients.state.active?.patientId;
   bool get canMutate =>
       _current &&
+      !history.visible &&
       canWrite &&
       !state.busy &&
       !state.blocked &&
@@ -283,6 +303,7 @@ final class NotebookCubit extends Cubit<NotebookState> {
   bool get canAmend => canMutate && state.selected?.finalized == true;
   bool get canDraw =>
       _current &&
+      !history.visible &&
       !_switching &&
       canWrite &&
       !state.blocked &&
@@ -309,6 +330,7 @@ final class NotebookCubit extends Cubit<NotebookState> {
   void _context() {
     final id = canRead ? patients.state.active?.patientId : null;
     if (identical(_owner, _staff) && id == state.patientId) return;
+    history.closeView();
     final old = _selectedHandle;
     _selectedHandle = null;
     if (old != null && !old.disposed) {
@@ -354,6 +376,7 @@ final class NotebookCubit extends Cubit<NotebookState> {
           ? NotebookIssue.forbidden
           : NotebookIssue.failed;
       if (status == 403 || status == 401) {
+        history.closeView();
         emit(
           NotebookState(
             patientId: state.patientId,
@@ -477,6 +500,7 @@ final class NotebookCubit extends Cubit<NotebookState> {
   Future<void> open(String id) async {
     if (!state.items.any((p) => p.id == id) || state.selected?.id == id) return;
     await _run((cancel, current) async {
+      history.closeView();
       _switching = true;
       if (!await _releaseSelected()) {
         _switching = false;
@@ -510,6 +534,7 @@ final class NotebookCubit extends Cubit<NotebookState> {
       return;
     }
     await _run((cancel, current) async {
+      history.closeView();
       _switching = true;
       if (!await _releaseSelected()) {
         _switching = false;
@@ -574,6 +599,10 @@ final class NotebookCubit extends Cubit<NotebookState> {
             ),
           );
         }
+      } on FormatException {
+        // Keep the full encrypted draft; never truncate ink to fit transport.
+        await draft.flush();
+        if (current()) emit(state.copy(issue: NotebookIssue.documentRejected));
       } catch (_) {
         if (current()) emit(state.copy(busy: true, pending: draft.submission));
         rethrow;
@@ -611,6 +640,7 @@ final class NotebookCubit extends Cubit<NotebookState> {
     }
     final page = state.selected, handle = activeDraft;
     if (!_current ||
+        history.visible ||
         !canWrite ||
         state.busy ||
         page == null ||
@@ -736,6 +766,7 @@ final class NotebookCubit extends Cubit<NotebookState> {
 
   @override
   Future<void> close() async {
+    history.dispose();
     _generation++;
     _cancel?.cancel();
     session.drafts.removeListener(_localChanged);

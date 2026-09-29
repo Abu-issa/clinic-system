@@ -71,6 +71,7 @@ final class InkController extends ChangeNotifier {
   final _eraserPoints = <Offset>[];
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
+  bool get hasContact => _pointer != null;
 
   void releaseHistory() {
     finishActive();

@@ -98,6 +98,84 @@ abstract class AppLocalizations {
     Locale('en'),
   ];
 
+  /// No description provided for @inkDocumentRejected.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذر مزامنة الحبر بسبب الحجم أو التنسيق غير المدعوم. تحقق من حالة الحفظ المحلي. لم يُحذف أي حبر. احتفظ بالمسودة وافتح صفحة جديدة لمتابعة الكتابة أو تواصل مع الدعم.'**
+  String get inkDocumentRejected;
+
+  /// No description provided for @historyTitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجل الإصدارات'**
+  String get historyTitle;
+
+  /// No description provided for @historyReadOnly.
+  ///
+  /// In ar, this message translates to:
+  /// **'للقراءة فقط / إصدار سابق'**
+  String get historyReadOnly;
+
+  /// No description provided for @historyBack.
+  ///
+  /// In ar, this message translates to:
+  /// **'العودة إلى الصفحة الحالية'**
+  String get historyBack;
+
+  /// No description provided for @historyFailed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذر تحميل السجل. لم تتغير مسودتك الحالية.'**
+  String get historyFailed;
+
+  /// No description provided for @historyCreated.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء'**
+  String get historyCreated;
+
+  /// No description provided for @historyRevision.
+  ///
+  /// In ar, this message translates to:
+  /// **'إصدار'**
+  String get historyRevision;
+
+  /// No description provided for @historyAmendment.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل لاحق'**
+  String get historyAmendment;
+
+  /// No description provided for @historyLatest.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحالي / الأحدث'**
+  String get historyLatest;
+
+  /// No description provided for @historyAuthor.
+  ///
+  /// In ar, this message translates to:
+  /// **'الكاتب'**
+  String get historyAuthor;
+
+  /// No description provided for @historySelected.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإصدار المحدد'**
+  String get historySelected;
+
+  /// No description provided for @historyLegacy.
+  ///
+  /// In ar, this message translates to:
+  /// **'إصدار قديم — لا يحتوي على حبر محفوظ'**
+  String get historyLegacy;
+
+  /// No description provided for @historyNoInk.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء الصفحة — لا يوجد حبر محفوظ'**
+  String get historyNoInk;
+
   /// No description provided for @notebookPages.
   ///
   /// In ar, this message translates to:

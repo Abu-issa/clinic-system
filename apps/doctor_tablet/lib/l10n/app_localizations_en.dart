@@ -10,6 +10,47 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get inkDocumentRejected =>
+      'This ink cannot be synced: it exceeds the supported size or format. Check the local save status. No ink was removed. Keep this draft; start a new notebook page for further writing or contact support.';
+
+  @override
+  String get historyTitle => 'History';
+
+  @override
+  String get historyReadOnly => 'READ ONLY / HISTORICAL REVISION';
+
+  @override
+  String get historyBack => 'Back to Current Page';
+
+  @override
+  String get historyFailed =>
+      'History could not be loaded. Your current draft is unchanged.';
+
+  @override
+  String get historyCreated => 'Created';
+
+  @override
+  String get historyRevision => 'Revision';
+
+  @override
+  String get historyAmendment => 'Amendment';
+
+  @override
+  String get historyLatest => 'Current / latest';
+
+  @override
+  String get historyAuthor => 'Author';
+
+  @override
+  String get historySelected => 'Selected revision';
+
+  @override
+  String get historyLegacy => 'Legacy revision — no stored ink';
+
+  @override
+  String get historyNoInk => 'Page creation — no stored ink';
+
+  @override
   String get notebookPages => 'Notebook pages';
 
   @override

@@ -27,6 +27,25 @@ public sealed class StaffNotebookPagesController(
     HttpAccessAudit audit, StaffAuthentication staff, NotebookPayloadService payloads,
     INotebookStore store, IFileStorage storage) : ControllerBase
 {
+    [HttpGet("{pageId:guid}/revisions")]
+    public async Task<IResult> Revisions(Guid patientId, Guid pageId, [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20, CancellationToken ct = default)
+    {
+        if (!await Allowed(patientId, "NotebookRead")) return Results.Forbid();
+        if (page < 1 || page > 1000000 || pageSize < 1 || pageSize > 100) return Error(400, "invalid_input");
+        var notebook = await store.GetPageAsync(patientId, pageId, ct);
+        if (notebook is null) return Error(404, "page_not_found");
+        var revisions = await store.ListRevisionsAsync(pageId, page, pageSize, ct);
+        var projection = new { patientId, pageId, page, pageSize, hasMore = revisions.Count > pageSize,
+            currentRevisionNumber = Math.Max(notebook.CurrentRevisionNumber, revisions.FirstOrDefault()?.RevisionNumber ?? 0),
+            items = revisions.Take(pageSize).Select(r => new {
+                r.RevisionNumber, r.AuthorStaffId, r.CreatedAtUtc, r.HasPayload,
+                kind = r.Kind == Clinic.Domain.Enums.NotebookRevisionKind.Payload ? "Revision" : r.Kind.ToString()
+            }).ToArray() };
+        return await audit.RecordAsync(HttpContext, "notebook.revision.list", "notebook-page",
+            pageId.ToString("N"), patientId) ?? Results.Ok(projection);
+    }
+
     [HttpPost("{pageId:guid}/revisions")]
     [NotebookMultipart]
     [RequestSizeLimit(NotebookPayloadService.MaxRequestBytes)]
@@ -111,6 +130,9 @@ public sealed class StaffNotebookPagesController(
         var failure = await audit.RecordAsync(HttpContext, "notebook.revision.read", "notebook-revision",
             reference.Revision.Id.ToString("N"), patientId);
         if (failure is not null) return failure;
+        Response.Headers["X-Notebook-Patient"] = patientId.ToString();
+        Response.Headers["X-Notebook-Page"] = pageId.ToString();
+        Response.Headers["X-Notebook-Revision"] = reference.Revision.RevisionNumber.ToString(System.Globalization.CultureInfo.InvariantCulture);
         Response.Headers.XContentTypeOptions = "nosniff";
         var realInk = NotebookInkPayload.Valid(bytes, patientId, pageId);
         Response.Headers.ContentDisposition = realInk ? "attachment; filename=notebook.msgpack" : "attachment; filename=notebook.json";

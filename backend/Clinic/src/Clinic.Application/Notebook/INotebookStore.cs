@@ -4,6 +4,7 @@ namespace Clinic.Application.Notebook;
 
 public interface INotebookStore
 {
+    Task<IReadOnlyList<NotebookRevisionMetadata>> ListRevisionsAsync(Guid pageId, int page, int pageSize, CancellationToken ct);
     Task<bool> PatientExistsAsync(Guid patientId, CancellationToken ct = default);
     Task<bool> DoctorExistsAsync(Guid doctorId, CancellationToken ct = default);
     Task<Guid?> VisitPatientIdAsync(Guid visitId, CancellationToken ct = default);
@@ -29,3 +30,5 @@ public interface INotebookRevisionTransaction : IAsyncDisposable
 
 // Internal persistence projection; never serialize this reference at the API boundary.
 public sealed record NotebookRevisionReference(NotebookRevision Revision, StoredFile? File);
+public sealed record NotebookRevisionMetadata(long RevisionNumber, string AuthorStaffId,
+    DateTimeOffset CreatedAtUtc, Clinic.Domain.Enums.NotebookRevisionKind Kind, bool HasPayload);

@@ -1,4 +1,6 @@
 {
+"inkDocumentRejected":"تعذر مزامنة الحبر بسبب الحجم أو التنسيق غير المدعوم. تحقق من حالة الحفظ المحلي. لم يُحذف أي حبر. احتفظ بالمسودة وافتح صفحة جديدة لمتابعة الكتابة أو تواصل مع الدعم.",
+"historyTitle":"سجل الإصدارات", "historyReadOnly":"للقراءة فقط / إصدار سابق", "historyBack":"العودة إلى الصفحة الحالية", "historyFailed":"تعذر تحميل السجل. لم تتغير مسودتك الحالية.", "historyCreated":"إنشاء", "historyRevision":"إصدار", "historyAmendment":"تعديل لاحق", "historyLatest":"الحالي / الأحدث", "historyAuthor":"الكاتب", "historySelected":"الإصدار المحدد", "historyLegacy":"إصدار قديم — لا يحتوي على حبر محفوظ", "historyNoInk":"إنشاء الصفحة — لا يوجد حبر محفوظ",
 "notebookPages": "صفحات الدفتر", "notebookPrevious": "الصفحة السابقة", "notebookNext": "الصفحة التالية", "notebookPosition": "الصفحة {position} من {count}", "@notebookPosition": {"placeholders": {"position": {"type": "String"}, "count": {"type": "String"}}},
   "conflictConfirmAction": "تأكيد تجاهل تعديلاتي",
   "conflictConfirmDiscard": "سيتم حذف الحبر غير المتزامن والمراجعات المعلقة لهذه الصفحة بعد قراءة أحدث حبر من الخادم بنجاح. لا يمكن التراجع عن ذلك.",

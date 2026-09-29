@@ -1,5 +1,9 @@
 import 'package:doctor_tablet/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+
+import '../../notebook/presentation/stylus_diagnostics.dart';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../app/localization/locale_cubit.dart';
@@ -17,6 +21,17 @@ final class AuthenticatedShell extends StatelessWidget {
       appBar: AppBar(
         title: Text(strings.shellTitle),
         actions: [
+          if (kDebugMode)
+            IconButton(
+              key: const Key('stylus-diagnostics'),
+              tooltip: 'DEV · Stylus diagnostics',
+              icon: const Icon(Icons.bug_report),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const StylusDiagnostics(),
+                ),
+              ),
+            ),
           TextButton(
             onPressed: () => context.read<LocaleCubit>().toggle(),
             child: Text(strings.languageToggle),
